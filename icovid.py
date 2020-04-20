@@ -19,7 +19,7 @@ from utils import colour, logLevel, logger
 class iCovidBase:
     ''' Base class with common functionality '''
     def __init__(self):
-        self.logger = logger(logLevel.NORMAL)
+        self.logger = logger(logLevel.TRACE)
 
     def web_request(self, url):
         ''' Function perform HTML page request
@@ -85,9 +85,10 @@ class iCovid (iCovidBase):
         self.logger.normal('Збір даних про регіони ..')
         page = self.web_request('https://moz.gov.ua/article/news/operativna-informacija-pro-poshirennja-koronavirusnoi-infekcii-2019-ncov-')
 
-        regns = self.html_get_node(page, './/div[@class="editor"]//ul', nid=0)
+        webnode = self.html_get_node(page, './/div[@class="editor"]//p', nid=2)
+        regns = str(webnode.text_content()).split('\n')
         for region in regns:
-            reg, cases = region.text.split(' — ')
+            reg, cases = region.split(' — ')
             self.config['regions'][reg] = int(cases.strip().split()[0])
 
         self.logger.success('Інформацію про регіони оновлено')

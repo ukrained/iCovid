@@ -57,13 +57,13 @@ class logLevel:
     TRACE = 6     # any trash you want
 
     # string to describe log level
-    token = {CRITICAL: 'CRITICAL',
-             ERROR: 'ERROR',
-             WARNING: 'Warning',
-             SUCCESS: 'Success',
-             NORMAL: 'normal',
-             DEBUG: 'debug',
-             TRACE: 'trace'}
+    token = {CRITICAL: 'КРИТИЧНО',
+             ERROR: 'ПОМИЛКА',
+             WARNING: 'Увага',
+             SUCCESS: 'Успіх',
+             NORMAL: 'норма',
+             DEBUG: 'зневадження',
+             TRACE: 'відстеження'}
 
     # color for each log level
     colour = {CRITICAL: colour.bg.purple,

@@ -107,7 +107,7 @@ class iCovid (iCovidBase):
         regions = self.config.get('regions', {})
 
         # datetime object containing current date and time
-        text = ' * Дані станом на {:%d %B %Y [%H:%M:%S]}\n\n'.format(self._updated)
+        text = '\n * Дані станом на {:%d %B %Y [%H:%M:%S]}\n\n'.format(self._updated)
 
         # total information
         text += '   [ %s ] ' % self.logger.encolour(colour.fg.cyan, country)
@@ -121,10 +121,6 @@ class iCovid (iCovidBase):
                                self.logger.encolour(colour.fg.red, 'Померли'))
         text += ' .{:-<76}.\n'.format('')
 
-        # country information
-        text += '   {:,} людей на {:,} км2 ({:.2f} л/км2)\n'.format(popl, area, dens)
-        text += ' +{:-<76}+\n'.format('')
-
         # regions information
         if regions:
             min_cases = min(regions.values())
@@ -132,6 +128,9 @@ class iCovid (iCovidBase):
             zone_colour = {0: colour.fg.white, 1: colour.fg.yellow,
                            2: colour.fg.orange, 3: colour.fg.lightred,
                            4: colour.fg.red}
+
+            text += '   Рівні небезпеки: %s.\n' % ' '.join(self.logger.encolour(zone_colour[i], str(i)) for i in range(5))
+            text += ' +{:-<76}+\n'.format('')
 
             line = ' '
             for i, key in enumerate(regions):
@@ -146,6 +145,10 @@ class iCovid (iCovidBase):
         else:
             text += '  << Немає даних по регіонах >>\n'
 
+        text += ' +{:-<76}+\n'.format('')
+
+        # country information
+        text += '   Населення {:,} людей на {:,} км2 ({:.2f} л/км2)\n'.format(popl, area, dens)
         text += ' \'{:-<76}\'\n'.format('')
 
         return text

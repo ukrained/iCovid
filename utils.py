@@ -1,7 +1,7 @@
 # metadata
 __title__ = 'PY_UTILS_LIB'
-__version__ = '0.1.2[a]'
-__release__ = '17 Apr 2020'
+__version__ = '0.2.1[a]'
+__release__ = '20 Apr 2020'
 __author__ = 'Oleksandr Viytiv'
 
 

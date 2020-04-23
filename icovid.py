@@ -2,8 +2,8 @@
 
 # metadata
 __title__ = 'iCovid Monitoring Utility'
-__version__ = '0.1.4[a]'
-__release__ = '17 Apr 2020'
+__version__ = '0.2.7[a]'
+__release__ = '23 Apr 2020'
 __author__ = 'Oleksandr Viytiv'
 
 # modules
@@ -85,10 +85,10 @@ class iCovid (iCovidBase):
         self.logger.normal('Збір даних про регіони ..')
         page = self.web_request('https://moz.gov.ua/article/news/operativna-informacija-pro-poshirennja-koronavirusnoi-infekcii-2019-ncov-')
 
-        webnode = self.html_get_node(page, './/div[@class="editor"]//p', nid=2)
-        regns = str(webnode.text_content()).split('\n')
-        for region in regns:
-            reg, cases = region.split(' — ')
+        regions_node = self.html_get_node(page, './/div[@class="editor"]//ul', nid=0)
+        regions = regions_node.xpath('.//li')
+        for region in regions:
+            reg, cases = region.text.split(' — ')
             self.config['regions'][reg] = int(cases.strip().split()[0])
 
         self.logger.success('Інформацію про регіони оновлено')
@@ -129,7 +129,7 @@ class iCovid (iCovidBase):
                            2: colour.fg.orange, 3: colour.fg.lightred,
                            4: colour.fg.red}
 
-            text += '   Рівні небезпеки: %s.\n' % ' '.join(self.logger.encolour(zone_colour[i], str(i)) for i in range(5))
+            text += '   Рівні небезпеки: %s\n' % ' '.join(self.logger.encolour(zone_colour[i], str(i)) for i in range(5))
             text += ' +{:-<76}+\n'.format('')
 
             line = ' '

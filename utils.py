@@ -1,7 +1,7 @@
 # metadata
 __title__ = 'PY_UTILS_LIB'
-__version__ = '0.2.1[a]'
-__release__ = '20 Apr 2020'
+__version__ = '0.3.5[a]'
+__release__ = '24 Apr 2020'
 __author__ = 'Oleksandr Viytiv'
 
 
@@ -84,6 +84,9 @@ class logger:
         '''
         self._gllvl = gllvl
 
+    def get_lvl(self):
+        return self._gllvl
+
     def log(self, lvl, msg, raw=False, end='.\n'):
         ''' Print log message
 
@@ -137,3 +140,20 @@ class logger:
         :return: colorized text
         '''
         return clr + msg + colour.NORMAL
+
+    def approve(self, msg, default=False):
+        ''' Get user approve
+
+        :param msg: user message
+        :return: TRUE if approved, FALSE otherwise
+        '''
+        resp = input('> {}? [{}/{}]'.format(msg,
+                                            'Y' if default else 'y',
+                                            'n' if default else 'N'))
+        if resp in ['y', 'ye', 'yes']:
+            return True
+        elif resp in ['n', 'no']:
+            return False
+
+        self.warning('Недійсна відповідь "{}". Дія за умовчанням [{}]'.format(resp, default))
+        return default

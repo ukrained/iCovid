@@ -235,7 +235,7 @@ class iCovid (iCovidBase):
     def __upd_ukr_regions(self, config):
         # moz.gov.ua
         self.logger.normal(' - Збір даних про регіони ..')
-        page = self.web_request('https://moz.gov.ua/article/news/operativna-informacija-pro-poshirennja-koronavirusnoi-infekcii-2019-ncov-')
+        page = self.web_request('https://moz.gov.ua/article/news/operativna-informacija-pro-poshirennja-koronavirusnoi-infekcii-2019-ncov-1')
 
         regions_node = self.html_get_node(page, './/div[@class="editor"]//ul', nid=0)
         regions = regions_node.xpath('.//li')
@@ -260,8 +260,7 @@ class iCovid (iCovidBase):
         # govextra.gov.il
         self.logger.normal(' - Збір загальних даних ..')
         page = self.web_request('https://govextra.gov.il/ministry-of-health/corona/corona-virus/')
-        with open('il_total.html', 'w+') as f:
-            f.write(page)
+
         total = self.html_get_node(page, './/div[@class="corona-xl corona-bold corona-sickmiddle"]', nid=0)
         config['Sick'] = total.text
 

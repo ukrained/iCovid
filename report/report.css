@@ -1,0 +1,170 @@
+html {
+    overflow-x: hidden;
+    overflow-y: scroll;
+}
+
+body {
+    width: 100%;
+}
+
+svg {
+    max-width: 100% !important;
+    height: auto;
+    display: block;
+}
+
+.enabled {
+    fill: #CCCCCC;
+    cursor: pointer;
+}
+
+.description {
+    pointer-events: none;
+    position: absolute;
+    font-family: 'Prata', serif;
+    font-size: 15px;
+    text-align: center;
+    background: white;
+    padding: 10px 15px;
+    z-index: 5;
+    height: 20px;
+    line-height: 20px;
+    margin: 0 auto;
+    color: black;
+    border-radius: 5px;
+    box-shadow: 0 0 0 1px #888;
+    -moz-transform: translateX(-50%);
+    -ms-transform: translateX(-50%);
+    -webkit-transform: translateX(-50%);
+    transform: translateX(-50%);
+    display: none;
+}
+
+.description.active {
+    display: block;
+}
+
+.description:after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 100%;
+    width: 0;
+    height: 0;
+    margin-left: -10px;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-top: 10px solid white;
+}
+
+.land {
+    /*fill: rgb(204, 204, 204);*/
+    fill-opacity: 1;
+    stroke:black;
+    stroke-opacity: 1;
+    stroke-width: 0.5;
+}
+
+.land:hover {
+    fill: rgb(255, 255, 255);
+}
+
+
+h1 {
+    font-family: 'Prata', serif;
+    font-size: 31px;
+    font-style: normal;
+    font-variant: normal;
+    font-weight: 200;
+    line-height: normal;
+    margin: 0;
+}
+
+h2 {
+    font-family: 'Prata', serif;
+    font-size: 25px;
+    font-style: normal;
+    font-variant: normal;
+    font-weight: 200;
+    line-height: normal;
+    margin: 0;
+}
+
+h3 {
+    font-family: 'Prata', serif;
+    font-size: 19px;
+    font-style: normal;
+    font-variant: normal;
+    font-weight: 200;
+    line-height: normal;
+    margin: 0;
+}
+
+p {
+    font-family: 'Prata', serif;
+    font-size: 15px;
+    font-style: normal;
+    font-variant: normal;
+    font-weight: 200;
+    line-height: normal;
+    margin: 0;
+}
+
+#map {
+    width: 90%;
+    max-height: 600px;
+    padding: 3em;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#toptitle {
+    text-align: center;
+    background: white;
+}
+
+#regiondata {
+    margin-left: auto;
+    margin-right: auto;
+    font-size: 16px;
+    box-shadow: 5px 10px 10px #999;
+}
+
+table {
+    font-family: 'Play', sans-serif;
+    border: 1px solid #bbb;
+    border-radius: 5px;
+}
+
+th {
+    background-color: #999;
+    color: white;
+}
+
+th, td {
+    text-align: center;
+    width: 115px;
+    padding: 5px;
+}
+
+#rd_name {
+    width: 275px;
+}
+
+.thcell:hover {
+    background-color: #aaa;
+}
+
+.trcell:hover {
+    background-color: lightgoldenrodyellow;
+}
+
+.footer {
+    text-align: center;
+    position: relative;
+    margin-left: auto;
+    margin-right: auto;
+    width: 300px;
+    border-radius: 5px;
+    transition: 0.5s;
+}

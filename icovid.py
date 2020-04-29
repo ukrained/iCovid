@@ -9,31 +9,20 @@ __author__ = 'Oleksandr Viytiv'
 # modules
 import urllib.request
 import urllib.parse
+import argparse
 import json
 import re
 import os
 
 from lxml import html
-from datetime import datetime
+from ftplib import FTP
+from getpass import getpass
+from datetime import datetime, date, timedelta
 from utils import colour, logLevel, logger
 
 
 class dbWorker:
-    ''' Interface for interfactions with DataBase '''
-    ''' DB Structure
-    {
-        '22.04.2020': {
-            'Ukraine': {
-                'Population': 41880000,
-                'Area': 603628,
-                'Tested': 0,
-                'Regions': {
-                    'Lviv': {}
-                }
-            }
-        }
-    }
-    '''
+    ''' DataBase manager '''
 
     def __init__(self, path, log_level=logLevel.NORMAL):
         ''' DB Constructor '''
@@ -101,15 +90,15 @@ class dbWorker:
                     self.__db[k_date][k_cont]['regions'][k_regn] = {}
 
                 self.__db[k_date][k_cont]['regions'][k_regn] = config
-                self.logger.debug('Регіон {} оновлено'.format(k_regn))
+                self.logger.debug('БД регіону {} оновлено'.format(k_regn))
                 return
 
             self.__db[k_date][k_cont] = config
-            self.logger.debug('Країну {} оновлено'.format(k_cont))
+            self.logger.debug('БД країни {} оновлено'.format(k_cont))
             return
 
         self.__db[k_date] = config
-        self.logger.debug('Дату {} оновлено'.format(k_date))
+        self.logger.debug('БД дати {} оновлено'.format(k_date))
         return
 
     def get(self, key):
@@ -185,10 +174,13 @@ class iCovidBase:
 
 
 class iCovid (iCovidBase):
-    def __init__(self):
+    def __init__(self, debug=False):
         ''' Constructor '''
-        super().__init__(logLevel.NORMAL)
-        self._updated = 0
+        super().__init__(logLevel.TRACE if debug else logLevel.NORMAL)
+
+        # initialize FTP object
+        self.ftp = FTP()
+        self.ftp.set_debuglevel(0)
 
     def update(self, countries):
         ''' Update latest data '''
@@ -196,12 +188,11 @@ class iCovid (iCovidBase):
         upd_cbs = {'ukr': self._upd_ukr,
                    'isr': self._upd_isr}
 
-        self._updated = datetime.now()
-        curr_date = self._updated.strftime("%d %b %Y")
+        curr_date = datetime.now().strftime("%d %b %Y")
 
+        self.logger.normal('Оновлюємо дані ..')
         for country in countries:
             if country in upd_cbs:
-                self.logger.normal('Оновлюємо дані про %s ..' % country)
                 name, cfg = upd_cbs[country]()
                 self.db.update({'date': curr_date, 'country': name}, cfg)
                 self.logger.success('Дані з {} оновлені'.format(name))
@@ -218,23 +209,22 @@ class iCovid (iCovidBase):
 
     def __upd_ukr_total(self, config):
         # covid19.gov.ua
-        self.logger.normal(' - Збір загальних даних ..')
+        self.logger.normal(' - Збір загальних даних з covid19.gov.ua ..')
         page = self.web_request('https://covid19.gov.ua/')
 
         divs = self.html_get_node(page, './/div[@class="one-field light-box info-count"]')
         if len(divs) != 4:
-            self.logger.error('Not expected number of nodes - %d' % len(divs))
+            self.logger.error('Неочікуване число елементів - %d' % len(divs))
             exit(1)
 
         for i, case in enumerate(['Tested', 'Sick', 'Recovered', 'Dead']):
-            config[case] = divs[i].xpath('.//div')[0].text.strip()
+            config[case] = int(divs[i].xpath('.//div')[0].text.strip().replace(' ', ''))
 
-        self.logger.trace(' + Загальні дані оновлено')
         return config
 
     def __upd_ukr_regions(self, config):
         # moz.gov.ua
-        self.logger.normal(' - Збір даних про регіони ..')
+        self.logger.normal(' - Збір даних про регіони з moz.gov.ua ..')
         page = self.web_request('https://moz.gov.ua/article/news/operativna-informacija-pro-poshirennja-koronavirusnoi-infekcii-2019-ncov-1')
 
         regions_node = self.html_get_node(page, './/div[@class="editor"]//ul', nid=0)
@@ -243,7 +233,6 @@ class iCovid (iCovidBase):
             reg, cases = region.text.split(' — ')
             config['Regions'][reg] = int(cases.strip().split()[0])
 
-        self.logger.trace(' + Дані про регіони оновлено')
         return config
 
     def _upd_isr(self):
@@ -258,76 +247,98 @@ class iCovid (iCovidBase):
 
     def __upd_isr_total(self, config):
         # govextra.gov.il
-        self.logger.normal(' - Збір загальних даних ..')
+        self.logger.normal(' - Збір загальних даних з govextra.gov.il ..')
         page = self.web_request('https://govextra.gov.il/ministry-of-health/corona/corona-virus/')
 
         total = self.html_get_node(page, './/div[@class="corona-xl corona-bold corona-sickmiddle"]', nid=0)
-        config['Sick'] = total.text
+        config['Sick'] = int(total.text.replace(',', ''))
 
         deadrec = self.html_get_node(page, './/div[@class="corona-lg corona-bold"]')
-        config['Dead'] = deadrec[0].text
-        config['Recovered'] = deadrec[1].text
+        config['Dead'] = int(deadrec[0].text.replace(',', ''))
+        config['Recovered'] = int(deadrec[1].text.replace(',', ''))
 
-        self.logger.trace(' + Загальні дані оновлено')
         return config
 
     def __upd_isr_regions(self, config):
-        # moz.gov.ua
+        #
         self.logger.normal(' - Збір даних про регіони ..')
-        #page = self.web_request('https://moz.gov.ua/article/news/operativna-informacija-pro-poshirennja-koronavirusnoi-infekcii-2019-ncov-')
-
-        self.logger.trace(' + Дані про регіони оновлено')
+        # page = self.web_request('')
         return config
 
     def __str__(self):
         ''' Show COVID information '''
         # get input data
-        curr_date = self._updated.strftime("%d %b %Y")
-        countries = self.db.get({'date': curr_date})
+        data_today = self.db.get({'date': date.today().strftime("%d %b %Y")})
+        data_yestd = self.db.get({'date': (date.today() - timedelta(days=1)).strftime("%d %b %Y")})
 
         # datetime object containing current date and time
-        text = '\n * Дані станом на {:%d %B %Y [%H:%M:%S]}\n'.format(self._updated)
+        text = '\n * Дані станом на {:%d %B %Y [%H:%M:%S]}\n'.format(datetime.now())
 
-        for country, cfg in countries.items():
+        for country, cfg in data_today.items():
+            # yesterday configuration
+            ycfg = data_yestd[country]
+
             # sort regions
             regions = {k: v for k, v in sorted(cfg['Regions'].items(),
                                                key=lambda it: it[1],
                                                reverse=True)}
 
+            # sort regions delta
+            rd = {k: v - ycfg['Regions'][k] for k, v in cfg['Regions'].items()}
+            rd_sick = {k: v for k, v in sorted(rd.items(),
+                                               key=lambda it: it[1],
+                                               reverse=True)}
+
+            # country information
+            text += '\n   [ %s ] ' % colour.set(colour.fg.cyan, country)
+            text += 'Населення {:,} людей на {:,} км2 ({:.2f} л/км2)\n' \
+                    .format(cfg['Population'], cfg['Area'],
+                            cfg['Population'] / cfg['Area'])
+
             # total information
-            text += '\n   [ %s ] ' % self.logger.encolour(colour.fg.cyan, country)
-            text += '  %s %s' % (cfg['Tested'], self.logger.encolour(colour.fg.grey, 'Перевірені'))
-            text += '  %s %s' % (cfg['Sick'], self.logger.encolour(colour.fg.yellow, 'Хворі'))
-            text += '  %s %s' % (cfg['Recovered'], self.logger.encolour(colour.fg.green, 'Одужали'))
-            text += '  %s %s\n' % (cfg['Dead'], self.logger.encolour(colour.fg.red, 'Померли'))
             text += ' .{:-<76}.\n'.format('')
+            block = '   {:>10} | {:^20} | {:<+6}  {:>10} | {:^20} | {:<+6}\n'
+
+            d_test = cfg['Tested'] - ycfg['Tested']
+            d_recv = cfg['Recovered'] - ycfg['Recovered']
+            text += block.format(cfg['Tested'], colour.set(colour.fg.grey, 'Перевірені'), d_test,
+                                 cfg['Recovered'], colour.set(colour.fg.green, 'Одужали'), d_recv)
+
+            d_sick = cfg['Sick'] - ycfg['Sick']
+            d_dead = cfg['Dead'] - ycfg['Dead']
+            text += block.format(cfg['Sick'], colour.set(colour.fg.yellow, 'Хворі'), d_sick,
+                                 cfg['Dead'], colour.set(colour.fg.red, 'Померли'), d_dead)
+
+            # separator
+            text += ' +{:-<76}+\n'.format('')
 
             # regions information
             if regions:
-                min_cases = min(regions.values())
-                zone_step = (max(regions.values()) + 1 - min_cases) / 5
-                zone_colour = {0: colour.fg.white, 1: colour.fg.yellow,
-                               2: colour.fg.orange, 3: colour.fg.lightred,
-                               4: colour.fg.red}
+                # 5 zones coloured by unique colour
+                zones = {0: colour.fg.white, 1: colour.fg.yellow,
+                         2: colour.fg.orange, 3: colour.fg.lightred,
+                         4: colour.fg.red}
+                min_sick = min(regions.values())
+                sick_step = (max(regions.values()) + 1 - min_sick) / 5
 
-                text += '   Рівні небезпеки: %s\n' % ' '.join(self.logger.encolour(zone_colour[i], str(i)) for i in range(5))
+                min_rdsick = min(rd_sick.values())
+                rdsick_step = (max(rd_sick.values()) + 1 - min_rdsick) / 5
+
+                text += '   Рівні небезпеки: %s\n' % ' '.join(colour.set(zones[i], str(i)) for i in range(5))
                 text += ' +{:-<76}+\n'.format('')
 
                 for region, sick in regions.items():
                     # depending of the value, region will have its colour
-                    clr = zone_colour[(sick - min_cases) // zone_step]
-                    text += '   {:.<70} {:<6}\n'.format(self.logger.encolour(clr, region) + ' ',
-                                                        '[' + str(sick) + ']')
+                    clr = zones[(rd_sick[region] - min_rdsick) // rdsick_step]
+                    ysick = colour.set(clr, '%+d' % rd_sick[region])
+
+                    clr = zones[(sick - min_sick) // sick_step]
+                    region = colour.set(clr, region) + ' '
+                    text += '   {:.<70} {:<5} | {:<5}\n'.format(region, sick, ysick)
 
             else:
                 text += '   << Немає даних по регіонах >>\n'
 
-            text += ' +{:-<76}+\n'.format('')
-
-            # country information
-            text += '   Населення {:,} людей на {:,} км2 ({:.2f} л/км2)\n' \
-                    .format(cfg['Population'], cfg['Area'],
-                            cfg['Population'] / cfg['Area'])
             text += ' \'{:-<76}\'\n'.format('')
 
         return text
@@ -337,10 +348,69 @@ class iCovid (iCovidBase):
         # TODO: future feature
         pass
 
+    def _login(self):
+        ''' Get login data from the user
+
+        :return: username and password
+        '''
+        try:
+            username = input(' [запит даних] > ім\'я користувача: ')
+            password = getpass(' [запит даних] > пароль %s: ' % username)
+        except KeyboardInterrupt:
+            self.logger.print('', end='\n')
+            self.logger.debug('Дані користувача не надано')
+            return (None, None)
+
+        return (username, password)
+
+    def _ftp_upload(self, localfile):
+        with open(localfile, 'rb') as fp:
+            self.ftp.storbinary('STOR %s' % os.path.basename(localfile), fp, 1024)
+        self.logger.debug('Файл "%s" вивантажено' % localfile)
+
+    def webpage_update(self, server):
+        ''' Update web-page files through FTP server '''
+        self.logger.normal('Оновлення веб-сторінки розпочато ..')
+
+        # get user data
+        uname, upass = self._login()
+        if not (uname and upass):
+            self.logger.warning('Оновлення веб-сторінки скасовано')
+            return
+
+        # setup FTP connection
+        self.ftp.connect(server, 21)
+        self.ftp.login(uname, upass)
+
+        # configure copy destination
+        self.ftp.cwd('/covidinfo.zzz.com.ua')
+
+        # prepare copy list
+        web_files = ['./report/index.html',
+                     './report/map_ukr.svg',
+                     './report/report.css',
+                     './report/report.js']
+
+        # copy files
+        for wfile in web_files:
+            self._ftp_upload(wfile)
+
+        self.logger.success('Веб-сторінку "%s" оновлено' % server)
+
 
 def main():
-    covid = iCovid()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-w', '--web_update',  action='store_true', help='update web page')
+    parser.add_argument('-d', '--debug', action='store_true', help='enable debug mode')
+
+    args = parser.parse_args()
+
+    covid = iCovid(debug=args.debug)
     covid.update(['ukr', 'isr'])
+
+    if args.web_update:
+        covid.webpage_update('covidinfo.zzz.com.ua')
+
     print(covid)
 
 

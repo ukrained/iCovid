@@ -1,8 +1,8 @@
 # metadata
-__title__ = 'PY_UTILS_LIB'
-__version__ = '0.3.5[a]'
-__release__ = '24 Apr 2020'
-__author__ = 'Oleksandr Viytiv'
+__title__ = 'Common Utils Library'
+__version__ = '0.4.7[a]'
+__release__ = '29 Apr 2020'
+__author__ = 'Alex Viytiv'
 
 
 class colour:
@@ -44,6 +44,10 @@ class colour:
         orange = '\033[43m'
         purple = '\033[45m'
         white = '\033[47m'
+
+    def set(clr, msg):
+        ''' Colorize message into '''
+        return clr + str(msg) + colour.NORMAL
 
 
 class logLevel:
@@ -87,12 +91,21 @@ class logger:
     def get_lvl(self):
         return self._gllvl
 
+    def print(self, msg, end='.\n'):
+        ''' Print user message anyway
+
+        :param msg: message itself
+        :param end: message end sequence
+        '''
+        print(msg, end=end)
+
     def log(self, lvl, msg, raw=False, end='.\n'):
         ''' Print log message
 
         :param lvl: user-defined log level of message
         :param msg: message itself
         :param raw: flag to disable msg postformatting
+        :param end: message end sequence
         '''
 
         if lvl > self._gllvl or lvl < logLevel.CRITICAL:
@@ -131,15 +144,6 @@ class logger:
     def trace(self, msg):
         ''' Print trace level log '''
         self.log(logLevel.TRACE, msg)
-
-    def encolour(self, clr, msg):
-        ''' Colorize message
-
-        :param clr: expected colour
-        :param msg: user message
-        :return: colorized text
-        '''
-        return clr + msg + colour.NORMAL
 
     def approve(self, msg, default=False):
         ''' Get user approve

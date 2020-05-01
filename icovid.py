@@ -21,6 +21,55 @@ from datetime import datetime, date, timedelta
 from utils import colour, logLevel, logger
 
 
+class htmlWorker:
+    ''' Provide HTML processing functionality '''
+    def __init__(self, source, target, pattern='{{ ([a-zA-Z_0-9]*) }}'):
+        ''' Constructor of htmlWorker object
+
+        :param source: source HTML file
+        :param target: target HTML file
+        '''
+        if not os.path.isfile(source):
+            raise FileExistsError('File not exist')
+        elif not source.endswith('.html') or not target.endswith('.html'):
+            raise Exception('Not an HTML file')
+
+        self._source = source
+        self._target = target
+        self._pattern = pattern
+        self._vars = {}
+
+        with open(self._source, 'r+') as f:
+            self._content = f.read()
+
+        self._analyze_vars()
+
+    def _analyze_vars(self):
+        ''' Analyze source HTML content
+
+        :param var_pattern: pattern of variables
+        '''
+        for var in re.findall(self._pattern, self._content):
+            self._vars[var] = ''
+
+    def render(self, values):
+        ''' Substitute values to their position '''
+        # store variables value
+        for value in values:
+            if value in self._vars:
+                self._vars[value] = values[value]
+
+        # replace tokens in original file
+        #    self._content.replace('{{ %s }}' % var, val)
+        for var, val in self._vars.items():
+            self._content = re.sub(r'{{ %s }}' % var, val, self._content, flags=re.MULTILINE)
+
+    def save(self):
+        ''' Write new content to the target file '''
+        with open(self._target, 'w+') as f:
+            f.write(self._content)
+
+
 class dbWorker:
     ''' DataBase manager '''
 
@@ -148,7 +197,7 @@ class iCovidBase:
         self.logger = logger(log_level)
         self.db = dbWorker('icovid.db', self.logger.get_lvl())
 
-    def web_request(self, url):
+    def _web_request(self, url):
         ''' Function perform HTML page request
 
         :param url: URL to webpage
@@ -159,7 +208,7 @@ class iCovidBase:
 
         return html.decode('utf-8')
 
-    def html_get_node(self, html_buffer, pattern, nid=None):
+    def _html_get_node(self, html_buffer, pattern, nid=None):
         ''' Function lookup HTML content
 
         :param html: WEB page HTML data
@@ -210,9 +259,9 @@ class iCovid (iCovidBase):
     def __upd_ukr_total(self, config):
         # covid19.gov.ua
         self.logger.normal(' - Збір загальних даних з covid19.gov.ua ..')
-        page = self.web_request('https://covid19.gov.ua/')
+        page = self._web_request('https://covid19.gov.ua/')
 
-        divs = self.html_get_node(page, './/div[@class="one-field light-box info-count"]')
+        divs = self._html_get_node(page, './/div[@class="one-field light-box info-count"]')
         if len(divs) != 4:
             self.logger.error('Неочікуване число елементів - %d' % len(divs))
             exit(1)
@@ -224,10 +273,11 @@ class iCovid (iCovidBase):
 
     def __upd_ukr_regions(self, config):
         # moz.gov.ua
+        # detailed - https://index.minfin.com.ua/ua/reference/coronavirus/ukraine/
         self.logger.normal(' - Збір даних про регіони з moz.gov.ua ..')
-        page = self.web_request('https://moz.gov.ua/article/news/operativna-informacija-pro-poshirennja-koronavirusnoi-infekcii-2019-ncov-1')
+        page = self._web_request('https://moz.gov.ua/article/news/operativna-informacija-pro-poshirennja-koronavirusnoi-infekcii-2019-ncov-1')
 
-        regions_node = self.html_get_node(page, './/div[@class="editor"]//ul', nid=0)
+        regions_node = self._html_get_node(page, './/div[@class="editor"]//ul', nid=0)
         regions = regions_node.xpath('.//li')
         for region in regions:
             reg, cases = region.text.split(' — ')
@@ -248,12 +298,12 @@ class iCovid (iCovidBase):
     def __upd_isr_total(self, config):
         # govextra.gov.il
         self.logger.normal(' - Збір загальних даних з govextra.gov.il ..')
-        page = self.web_request('https://govextra.gov.il/ministry-of-health/corona/corona-virus/')
+        page = self._web_request('https://govextra.gov.il/ministry-of-health/corona/corona-virus/')
 
-        total = self.html_get_node(page, './/div[@class="corona-xl corona-bold corona-sickmiddle"]', nid=0)
+        total = self._html_get_node(page, './/div[@class="corona-xl corona-bold corona-sickmiddle"]', nid=0)
         config['Sick'] = int(total.text.replace(',', ''))
 
-        deadrec = self.html_get_node(page, './/div[@class="corona-lg corona-bold"]')
+        deadrec = self._html_get_node(page, './/div[@class="corona-lg corona-bold"]')
         config['Dead'] = int(deadrec[0].text.replace(',', ''))
         config['Recovered'] = int(deadrec[1].text.replace(',', ''))
 
@@ -262,7 +312,7 @@ class iCovid (iCovidBase):
     def __upd_isr_regions(self, config):
         #
         self.logger.normal(' - Збір даних про регіони ..')
-        # page = self.web_request('')
+        # page = self._web_request('')
         return config
 
     def __str__(self):
@@ -343,10 +393,50 @@ class iCovid (iCovidBase):
 
         return text
 
-    def html_report(self):
+    def _html_report(self):
         ''' Export data to HTML web page '''
-        # TODO: future feature
-        pass
+        html = htmlWorker('./report/report.html', './report/index.html')
+        curr_date = date.today().strftime("%d %b %Y")
+        ukr_today = self.db.get({'date': curr_date})['Україна']
+        render_cfg = {}
+
+        # upload paths for regions
+        with open('./report/regions.map', 'r+') as fp:
+            regions_map = json.load(fp)
+
+        # total info
+        # <div id="total" title="Україна" tested="77752" sick="7647" recovered="601" dead="193" style="display: none;"></div>
+        total_tmpl = '<div id="total" title="{}" tested="{}" sick="{}" recovered="{}" dead="{}" style="display: none;"></div>'
+        total = total_tmpl.format('Україна',
+                                  ukr_today['Tested'], ukr_today['Sick'],
+                                  ukr_today['Recovered'], ukr_today['Dead'])
+
+        render_cfg['total'] = total
+
+        # updated info
+        # <p id="toptitle">📆 станом на 24 квітня 2020 року</p>
+        upd_tmpl = '<p id="toptitle">📆 станом на {} року</p>'
+        updated = upd_tmpl.format(curr_date)
+
+        render_cfg['updated'] = updated
+
+        # regions info
+        # <path id="UA-01" title="м.Київ" tested="—" sick="1122" recovered="—" dead="—" style="fill: rgb(255, 126, 126);" class="land enabled" d="M291.42,101.4L291.62,104.23L293.29,105.74L293.29,105.74L293.48,107.55L292.13,109.37L290.2,110.27L288.65,109.27L287.49,109.77L287.75,116.31L286.85,117.31L284.85,115.4L283.75,110.68L281.24,109.87L280.4,107.35L278.86,106.95L278.41,104.93L275.83,105.13L274.22,106.34L275.06,101.7L275.06,101.7L276.6,99.88L276.6,99.88L277.83,99.48L276.47,97.25L281.56,97.45L284.59,100.69L289.04,99.78L291.49,97.55L293.94,98.77L293.94,100.18L291.74,100.79L291.74,100.79z"/>
+        regs_tmpl = '<path title="{}" tested="—" sick="{}" recovered="—" dead="—" style="fill: rgb({}, {}, {});" class="land enabled" d="{}"/>\n'
+        max_sick = max(ukr_today['Regions'].values())
+        step_sick = max_sick / 256
+
+        regions = ''
+        for region, path in regions_map['Україна'].items():
+            sick = ukr_today['Regions'].get(region, '—')
+            nsick = 0 if sick == '—' else sick
+            rgb = (255, int(255 - (nsick / step_sick)), int(255 - (nsick / step_sick)))
+            regions += regs_tmpl.format(region, sick, *rgb, path)
+
+        render_cfg['regions'] = regions
+
+        html.render(render_cfg)
+        html.save()
 
     def _login(self):
         ''' Get login data from the user
@@ -363,13 +453,19 @@ class iCovid (iCovidBase):
 
         return (username, password)
 
-    def _ftp_upload(self, localfile):
-        with open(localfile, 'rb') as fp:
-            self.ftp.storbinary('STOR %s' % os.path.basename(localfile), fp, 1024)
-        self.logger.debug('Файл "%s" вивантажено' % localfile)
+    def _ftp_upload(self, srcfile):
+        with open(srcfile, 'rb') as f:
+            self.ftp.storbinary('STOR %s' % os.path.basename(srcfile), f, 1024)
+        self.logger.debug('Файл "%s" вивантажено' % srcfile)
 
     def webpage_update(self, server):
         ''' Update web-page files through FTP server '''
+        # generate HTML report
+        self.logger.normal('Генерування веб-сторінки ..')
+        self._html_report()
+        self.logger.success('Веб-сторінку згенеровано')
+
+        # run web files upload
         self.logger.normal('Оновлення веб-сторінки розпочато ..')
 
         # get user data
@@ -389,7 +485,8 @@ class iCovid (iCovidBase):
         web_files = ['./report/index.html',
                      './report/map_ukr.svg',
                      './report/report.css',
-                     './report/report.js']
+                     './report/report.js',
+                     './report/virus.png']
 
         # copy files
         for wfile in web_files:
@@ -400,8 +497,8 @@ class iCovid (iCovidBase):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-w', '--web_update',  action='store_true', help='update web page')
-    parser.add_argument('-d', '--debug', action='store_true', help='enable debug mode')
+    parser.add_argument('-w', '--web_update',  action='store_true')
+    parser.add_argument('-d', '--debug', action='store_true')
 
     args = parser.parse_args()
 

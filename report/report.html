@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ua">
+    <head>
+        <meta charset="UTF-8">
+        <title>COVID-19 </title>
+        <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        <!-- Links-->
+        <link rel="icon" href="virus.png">
+        <link rel="stylesheet" href="report.css">
+        <link href="https://fonts.googleapis.com/css2?family=Play&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Prata&display=swap" rel="stylesheet">
+    </head>
+    <body>
+        <div style="margin-top: 50px;">
+            <h1 id="toptitle">◅ Інформація про поширення коронавірусу в Україні ▻</p>
+            {{ updated }}
+        </div>
+
+        <svg id="map" viewBox="0 0 615 410">
+            <g>
+                {{ regions }}
+            </g>
+        </svg>
+
+        <div style="margin-bottom: 50px;">
+            <table id='regiondata' cellspacing="0">
+                <tr>
+                    <th class="thcell">Адміністративна одиниця 📌</th>
+                    <th class="thcell">Перевірені 📋</th>
+                    <th class="thcell">Хворі 💊</th>
+                    <th class="thcell">Одужали 💖</th>
+                    <th class="thcell">Померли 💢</th>
+                </tr>
+                <tr>
+                    <td id="rd_name" class="trcell"></td>
+                    <td id="rd_test" class="trcell"></td>
+                    <td id="rd_sick" class="trcell"></td>
+                    <td id="rd_recv" class="trcell"></td>
+                    <td id="rd_dead" class="trcell"></td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="footer">
+            <p>Компанія "Вирій" 🔥 2020</p>
+        </div>
+
+        <div class="description"></div>
+        {{ total }}
+
+        <script src='https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js'></script>
+        <script type="text/javascript" src="report.js"></script>
+    </body>
+
+</html>

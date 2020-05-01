@@ -2,9 +2,9 @@
 
 # metadata
 __title__ = 'iCovid Monitoring Utility'
-__version__ = '0.4.7[a]'
-__release__ = '24 Apr 2020'
-__author__ = 'Oleksandr Viytiv'
+__version__ = '0.7.2[b]'
+__release__ = '1 May 2020'
+__author__ = 'Alex Viytiv'
 
 # modules
 import urllib.request

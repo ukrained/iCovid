@@ -1,7 +1,7 @@
 # metadata
 __title__ = 'Common Utils Library'
-__version__ = '0.4.7[a]'
-__release__ = '29 Apr 2020'
+__version__ = '0.6.4[b]'
+__release__ = '01 May 2020'
 __author__ = 'Alex Viytiv'
 
 

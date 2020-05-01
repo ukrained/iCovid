@@ -2,7 +2,7 @@
 
 # metadata
 __title__ = 'iCovid Monitoring Utility'
-__version__ = '0.7.2[b]'
+__version__ = '0.8.3[b]'
 __release__ = '1 May 2020'
 __author__ = 'Alex Viytiv'
 
@@ -231,30 +231,29 @@ class iCovid (iCovidBase):
         self.ftp = FTP()
         self.ftp.set_debuglevel(0)
 
-    def update(self, countries):
+    def update(self):
         ''' Update latest data '''
         # update callbacks
-        upd_cbs = {'ukr': self._upd_ukr,
-                   'isr': self._upd_isr}
+        upd_cbs = [self._upd_ukr, self._upd_isr]
 
         curr_date = datetime.now().strftime("%d %b %Y")
 
         self.logger.normal('Оновлюємо дані ..')
-        for country in countries:
-            if country in upd_cbs:
-                name, cfg = upd_cbs[country]()
-                self.db.update({'date': curr_date, 'country': name}, cfg)
-                self.logger.success('Дані з {} оновлені'.format(name))
+        for upd_cb in upd_cbs:
+            data = upd_cb()
+            self.db.update({'date': curr_date, 'country': data['Name']}, data)
+            self.logger.success('Дані з {} оновлені'.format(data['Name']))
 
     def _upd_ukr(self):
-        config = {'Population': 41880000, 'Area': 603628,
+        config = {'Name': 'Україна', 'Code': 'ukr', 'ViewBoxSz': '0 0 650 450',
+                  'Population': 41880000, 'Area': 603628,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
                   'Regions': {}}
 
         config = self.__upd_ukr_total(config)
         config = self.__upd_ukr_regions(config)
 
-        return 'Україна', config
+        return config
 
     def __upd_ukr_total(self, config):
         # covid19.gov.ua
@@ -301,14 +300,15 @@ class iCovid (iCovidBase):
         return config
 
     def _upd_isr(self):
-        config = {'Population': 9136000, 'Area': 20770,
+        config = {'Name': 'Ізраїль', 'Code': 'isr', 'ViewBoxSz': '0 0 300 850',
+                  'Population': 9136000, 'Area': 20770,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
                   'Regions': {}}
 
         config = self.__upd_isr_total(config)
         config = self.__upd_isr_regions(config)
 
-        return 'Ізраїль', config
+        return config
 
     def __upd_isr_total(self, config):
         # govextra.gov.il
@@ -326,7 +326,7 @@ class iCovid (iCovidBase):
 
     def __upd_isr_regions(self, config):
         # news.google.com
-        self.logger.normal(' - Збір даних про регіони ..')
+        self.logger.normal(' - Збір даних про регіони з news.google.com ..')
         page = self._web_request('https://news.google.com/covid19/map?hl=uk&gl=UA&ceid=UA%3Auk&mid=%2Fm%2F03spz')
 
         # initial regions data
@@ -441,48 +441,91 @@ class iCovid (iCovidBase):
 
     def _html_report(self):
         ''' Export data to HTML web page '''
+        # define templates for complex nodes
+        total_tmpl = '{}<div id="total_{}" title="{}" tested="{}" sick="{}" recovered="{}" dead="{}" style="display: none;"></div>\n'
+        country_tmpl = '''<div class="tab">
+                <input type="radio" name="tabgroup" id="{0}" onclick="country_changed('{0}')" {1}>
+                <label for="{0}">{2}</label>
+                <div class="tab_content">
+                    <svg id="map" viewBox="{3}">
+                        <g>
+{4}
+                        </g>
+                    </svg>
+                </div>
+            </div>
+            '''
+        region_tmpl = '{}<path title="{}" tested="{}" sick="{}" recovered="{}" dead="{}" style="fill: rgb({}, {}, {});" class="land enabled" onclick="copy_info()" d="{}"/>\n'
+
+        # create htmlWorker object
         html = htmlWorker('./report/report.html', './report/index.html')
-        curr_date = date.today().strftime("%d %b %Y")
-        ukr_today = self.db.get({'date': curr_date})['Україна']
+
+        # config for rendering
         render_cfg = {}
+        updated = ''
+        total = ''
+        regions = ''
+        checked = 'checked'
+        tab = '    '
+
+        # get current date
+        curr_date = date.today().strftime("%d %b %Y")
 
         # upload paths for regions
         with open('./report/regions.map', 'r+') as fp:
             regions_map = json.load(fp)
 
-        # total info
-        # <div id="total" title="Україна" tested="77752" sick="7647" recovered="601" dead="193" style="display: none;"></div>
-        total_tmpl = '<div id="total" title="{}" tested="{}" sick="{}" recovered="{}" dead="{}" style="display: none;"></div>'
-        total = total_tmpl.format('Україна',
-                                  ukr_today['Tested'], ukr_today['Sick'],
-                                  ukr_today['Recovered'], ukr_today['Dead'])
+        # get data for current date
+        today_data = self.db.get({'date': curr_date})
 
-        render_cfg['total'] = total
+        # stage 1 - date of latest data update
+        updated = curr_date
 
-        # updated info
-        # <p id="toptitle">📆 станом на 24 квітня 2020 року</p>
-        upd_tmpl = '<p id="toptitle">📆 станом на {} року</p>'
-        updated = upd_tmpl.format(curr_date)
+        for country, data in today_data.items():
+            # stage 2 - prepare total info for the country
+            total += total_tmpl.format(tab * 2, data['Code'], data['Name'],
+                                       data['Tested'], data['Sick'],
+                                       data['Recovered'], data['Dead'])
 
-        render_cfg['updated'] = updated
+            # stage 3 - regions data
+            max_sick = max(data['Regions'].values())
+            color_step = max_sick / 256
 
-        # regions info
-        # <path id="UA-01" title="м.Київ" tested="—" sick="1122" recovered="—" dead="—" style="fill: rgb(255, 126, 126);" class="land enabled" d="M291.42,101.4L291.62,104.23L293.29,105.74L293.29,105.74L293.48,107.55L292.13,109.37L290.2,110.27L288.65,109.27L287.49,109.77L287.75,116.31L286.85,117.31L284.85,115.4L283.75,110.68L281.24,109.87L280.4,107.35L278.86,106.95L278.41,104.93L275.83,105.13L274.22,106.34L275.06,101.7L275.06,101.7L276.6,99.88L276.6,99.88L277.83,99.48L276.47,97.25L281.56,97.45L284.59,100.69L289.04,99.78L291.49,97.55L293.94,98.77L293.94,100.18L291.74,100.79L291.74,100.79z"/>
-        regs_tmpl = '<path title="{}" tested="—" sick="{}" recovered="—" dead="—" style="fill: rgb({}, {}, {});" class="land enabled" d="{}"/>\n'
-        max_sick = max(ukr_today['Regions'].values())
-        step_sick = max_sick / 256
+            _regions = ''
+            for region, path in regions_map[data['Name']].items():
+                # get number of sick people in region
+                sick = data['Regions'].get(region, '—')
+                sick = sick if sick else '—'
 
-        regions = ''
-        for region, path in regions_map['Україна'].items():
-            sick = ukr_today['Regions'].get(region, '—')
-            nsick = 0 if sick == '—' else sick
-            sick = sick if sick else '—'
+                # stub for the future development
+                test = '—'
+                recv = '—'
+                dead = '—'
 
-            rgb = (255, int(255 - (nsick / step_sick)), int(255 - (nsick / step_sick)))
-            regions += regs_tmpl.format(region, sick, *rgb, path)
+                # calculate color
+                aux_colour = int(255 - ((0 if sick == '—' else sick) / color_step))
+                rgb = (255, aux_colour, aux_colour)
 
-        render_cfg['regions'] = regions
+                _regions += region_tmpl.format(tab * 7, region, test, sick,
+                                               recv, dead, *rgb, path)
 
+            # strip redundant newline
+            _regions = _regions.rstrip()
+
+            # form data per country
+            regions += country_tmpl.format(data['Code'], checked,
+                                           data['Name'], data['ViewBoxSz'],
+                                           _regions)
+            checked = ''
+
+        # strip redundant newline
+        regions = regions.rstrip()
+        total = total.rstrip()
+
+        # prepare data for rendering
+        render_cfg = {'updated': updated, 'regions': regions, 'total': total}
+
+        # render and save
         html.render(render_cfg)
         html.save()
 
@@ -551,7 +594,7 @@ def main():
     args = parser.parse_args()
 
     covid = iCovid(debug=args.debug)
-    covid.update(['ukr', 'isr'])
+    covid.update()
 
     if args.web_update:
         covid.webpage_update('covidinfo.zzz.com.ua')

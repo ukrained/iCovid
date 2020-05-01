@@ -1,8 +1,8 @@
 # metadata
-__title__ = 'PY_UTILS_LIB'
-__version__ = '0.1.2[a]'
-__release__ = '17 Apr 2020'
-__author__ = 'Oleksandr Viytiv'
+__title__ = 'Common Utils Library'
+__version__ = '0.6.4[b]'
+__release__ = '01 May 2020'
+__author__ = 'Alex Viytiv'
 
 
 class colour:
@@ -45,6 +45,10 @@ class colour:
         purple = '\033[45m'
         white = '\033[47m'
 
+    def set(clr, msg):
+        ''' Colorize message into '''
+        return clr + str(msg) + colour.NORMAL
+
 
 class logLevel:
     ''' Logging level class '''
@@ -84,12 +88,24 @@ class logger:
         '''
         self._gllvl = gllvl
 
+    def get_lvl(self):
+        return self._gllvl
+
+    def print(self, msg, end='.\n'):
+        ''' Print user message anyway
+
+        :param msg: message itself
+        :param end: message end sequence
+        '''
+        print(msg, end=end)
+
     def log(self, lvl, msg, raw=False, end='.\n'):
         ''' Print log message
 
         :param lvl: user-defined log level of message
         :param msg: message itself
         :param raw: flag to disable msg postformatting
+        :param end: message end sequence
         '''
 
         if lvl > self._gllvl or lvl < logLevel.CRITICAL:
@@ -129,11 +145,19 @@ class logger:
         ''' Print trace level log '''
         self.log(logLevel.TRACE, msg)
 
-    def encolour(self, clr, msg):
-        ''' Colorize message
+    def approve(self, msg, default=False):
+        ''' Get user approve
 
-        :param clr: expected colour
         :param msg: user message
-        :return: colorized text
+        :return: TRUE if approved, FALSE otherwise
         '''
-        return clr + msg + colour.NORMAL
+        resp = input('> {}? [{}/{}]'.format(msg,
+                                            'Y' if default else 'y',
+                                            'n' if default else 'N'))
+        if resp in ['y', 'ye', 'yes']:
+            return True
+        elif resp in ['n', 'no']:
+            return False
+
+        self.warning('Недійсна відповідь "{}". Дія за умовчанням [{}]'.format(resp, default))
+        return default

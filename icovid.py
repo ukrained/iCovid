@@ -277,11 +277,26 @@ class iCovid (iCovidBase):
         self.logger.normal(' - Збір даних про регіони з moz.gov.ua ..')
         page = self._web_request('https://moz.gov.ua/article/news/operativna-informacija-pro-poshirennja-koronavirusnoi-infekcii-2019-ncov-1')
 
-        regions_node = self._html_get_node(page, './/div[@class="editor"]//ul', nid=0)
-        regions = regions_node.xpath('.//li')
+        # initial regions data
+        initial = ["Автономна Республіка Крим", "Вінницька область",
+                   "Волинська область", "Дніпропетровська область",
+                   "Донецька область", "Житомирська область",
+                   "Закарпатська область", "Запорізька область",
+                   "Івано-Франківська область", "Кіровоградська область",
+                   "м. Київ", "м. Севастополь", "Київська область",
+                   "Львівська область", "Луганська область",
+                   "Миколаївська область", "Одеська область",
+                   "Полтавська область", "Рівненська область",
+                   "Сумська область", "Тернопільська область",
+                   "Харківська область", "Херсонська область",
+                   "Хмельницька область", "Чернівецька область",
+                   "Черкаська область", "Чернігівська область"]
+        config['Regions'] = {k: 0 for k in initial}
+
+        regions = self._html_get_node(page, './/div[@class="editor"]//ul')[0].xpath('.//li')
         for region in regions:
-            reg, cases = region.text.split(' — ')
-            config['Regions'][reg] = int(cases.strip().split()[0])
+            reg, sick = region.text.replace('\xa0', '').split(' — ')
+            config['Regions'][reg] = int(sick.strip().split()[0])
 
         return config
 
@@ -310,9 +325,40 @@ class iCovid (iCovidBase):
         return config
 
     def __upd_isr_regions(self, config):
-        #
+        # news.google.com
         self.logger.normal(' - Збір даних про регіони ..')
-        # page = self._web_request('')
+        page = self._web_request('https://news.google.com/covid19/map?hl=uk&gl=UA&ceid=UA%3Auk&mid=%2Fm%2F03spz')
+
+        # initial regions data
+        initial = ['Єрусалимський округ', "Центральний округ (Хамерказ)",
+                   'Тель-Авівський округ', "Північний округ (Хацафон)",
+                   'Південний округ (Хадаром)', "Хайфський округ (Хейфа)",
+                   'Голанські Висоти', 'Палестина']
+        config['Regions'] = {k: 0 for k in initial}
+
+        # used to store data under better regions naming
+        name_mapping = {"Єрусалим": "Єрусалимський округ",
+                        "Хадаром": "Південний округ (Хадаром)",
+                        "Північний округ": "Північний округ (Хацафон)",
+                        "Хамерказ": "Центральний округ (Хамерказ)",
+                        "Хефа": "Хайфський округ (Хейфа)"}
+
+        # get regions. skip first two general nodes
+        regions = self._html_get_node(page, './/tbody[@class="ppcUXd"]//tr')[2:]
+        for region in regions:
+            reg = region.xpath('.//th//div//span')[0].text
+            reg_name = name_mapping.get(reg, reg)
+
+            sick = region.xpath('.//td')[0].text.strip().replace('\xa0', '')
+            config['Regions'][reg_name] = int(sick)
+
+        # update Palestine separately
+        page = self._web_request('https://news.google.com/covid19/map?hl=uk&gl=UA&ceid=UA%3Auk&mid=%2Fm%2F01k0p4')
+
+        palestine = self._html_get_node(page, './/tbody[@class="ppcUXd"]//tr', nid=1)
+        sick = palestine.xpath('.//td')[0].text.strip().replace('\xa0', '')
+        config['Regions']['Палестина'] = int(sick)
+
         return config
 
     def __str__(self):
@@ -430,6 +476,8 @@ class iCovid (iCovidBase):
         for region, path in regions_map['Україна'].items():
             sick = ukr_today['Regions'].get(region, '—')
             nsick = 0 if sick == '—' else sick
+            sick = sick if sick else '—'
+
             rgb = (255, int(255 - (nsick / step_sick)), int(255 - (nsick / step_sick)))
             regions += regs_tmpl.format(region, sick, *rgb, path)
 

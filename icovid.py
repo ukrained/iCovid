@@ -292,9 +292,11 @@ class iCovid (iCovidBase):
                    "Черкаська область", "Чернігівська область"]
         config['Regions'] = {k: 0 for k in initial}
 
-        regions = self._html_get_node(page, './/div[@class="editor"]//ul')[0].xpath('.//li')
+        # regions = self._html_get_node(page, './/div[@class="editor"]//ul')[0].xpath('.//li')
+        regions = self._html_get_node(page, './/div[@class="editor"]//p')[2].text_content().split('\n')
         for region in regions:
-            reg, sick = region.text.replace('\xa0', '').split(' — ')
+            # reg, sick = region.text.replace('\xa0', '').split(' — ')
+            reg, sick = region.replace('\xa0', '').split(' — ')
             config['Regions'][reg] = int(sick.strip().split()[0])
 
         return config

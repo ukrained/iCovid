@@ -21,7 +21,7 @@ $(document).ready(function(){
     $('#rd_dead').html($('#total').attr('dead'))
 
     /* Welcome message */
-    msg = 'Вітаємо!<br>На цій сторінці ви можете отримати коротку інформацію про поширення вірусу SARS-nCov-2 на теренах України та Ізраїлю.<br><br>👉 Щоб отримати інформацію про певний регіон, наведіть на нього вказівник.<br><br>👉 Щоб скопіювати дані, натисність на регіон чи на панель даних.<br><br>Гарного вам дня!';
+    msg = 'Вітаємо!<br>На цій сторінці ви можете отримати коротку інформацію про поширення вірусу SARS-nCov-2 на теренах України, Ізраїлю та Польщі.<br><br>👉 Щоб отримати інформацію про певний регіон, наведіть на нього вказівник.<br><br>👉 Щоб скопіювати дані, натисність на регіон чи на панель даних.<br><br>Гарного вам дня!';
     nofity(msg, 15000);
 
 });
@@ -60,7 +60,6 @@ $('#footer_content').hover(
         $(this).text("🦠👑 навіть тут був коронавірус 👑🦠");
     },
     function() {
-        console.log('out');
         $(this).text("😱 ти крейзі? мерщій вдягай маску! 😷");
 });
 
@@ -68,29 +67,20 @@ $('#footer_content').hover(
  * Update total information when user switch between countries
  */
 function country_changed(name) {
-    switch(name) {
-        case 'ukr':
-            $('#total').attr('title',     $('#total_ukr').attr('title'));
-            $('#total').attr('tested',    $('#total_ukr').attr('tested'));
-            $('#total').attr('sick',      $('#total_ukr').attr('sick'));
-            $('#total').attr('recovered', $('#total_ukr').attr('recovered'));
-            $('#total').attr('dead',      $('#total_ukr').attr('dead'));
-            break;
+    node_id = '#total_' + name;
 
-        case 'isr':
-            $('#total').attr('title', $('#total_isr').attr('title'));
-            $('#total').attr('tested', $('#total_isr').attr('tested'));
-            $('#total').attr('sick', $('#total_isr').attr('sick'));
-            $('#total').attr('recovered', $('#total_isr').attr('recovered'));
-            $('#total').attr('dead', $('#total_isr').attr('dead'));
-            break;
-
-        default:
-            $('#total').attr('title',     '—');
-            $('#total').attr('tested',    '—');
-            $('#total').attr('sick',      '—');
-            $('#total').attr('recovered', '—');
-            $('#total').attr('dead',      '—');
+    if ($(node_id).length > 0) {
+        $('#total').attr('title',     $(node_id).attr('title'));
+        $('#total').attr('tested',    $(node_id).attr('tested'));
+        $('#total').attr('sick',      $(node_id).attr('sick'));
+        $('#total').attr('recovered', $(node_id).attr('recovered'));
+        $('#total').attr('dead',      $(node_id).attr('dead'));
+    } else {
+        $('#total').attr('title',     '—');
+        $('#total').attr('tested',    '—');
+        $('#total').attr('sick',      '—');
+        $('#total').attr('recovered', '—');
+        $('#total').attr('dead',      '—');
     }
 
     /* Initialize total data */

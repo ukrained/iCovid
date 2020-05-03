@@ -2,7 +2,7 @@
 
 # metadata
 __title__ = 'iCovid Monitoring Utility'
-__version__ = '0.8.3[b]'
+__version__ = '0.8.7[b]'
 __release__ = '1 May 2020'
 __author__ = 'Alex Viytiv'
 
@@ -99,7 +99,24 @@ class dbWorker:
                 return
 
         with open(self._path, 'r+') as fp:
-            self.__db = json.load(fp)
+            # read data for backup and reset pointer
+            backup_data = fp.read()
+            fp.seek(0)
+
+            # try to upload as JSON
+            try:
+                self.__db = json.load(fp)
+            except Exception as e:
+                # failure processing
+                self.__auto_save = False
+                self.logger.error('Помилка при підвантаженні БД')
+                raise e
+
+            # Create backup file
+            with open(self._path + '.backup', 'w+') as fpb:
+                fpb.write(backup_data)
+
+            self.logger.debug('Створено резервну копію даних "%s"' % (self._path + '.backup'))
 
         self.logger.success('БД підвантажено')
 
@@ -234,7 +251,7 @@ class iCovid (iCovidBase):
     def update(self):
         ''' Update latest data '''
         # update callbacks
-        upd_cbs = [self._upd_ukr, self._upd_isr]
+        upd_cbs = [self._upd_ukr, self._upd_isr, self._upd_pol]
 
         curr_date = datetime.now().strftime("%d %b %Y")
 
@@ -245,7 +262,7 @@ class iCovid (iCovidBase):
             self.logger.success('Дані з {} оновлені'.format(data['Name']))
 
     def _upd_ukr(self):
-        config = {'Name': 'Україна', 'Code': 'ukr', 'ViewBoxSz': '0 0 650 450',
+        config = {'Name': 'Україна', 'Code': 'ukr', 'ViewBoxSz': '0 0 640 410',
                   'Population': 41880000, 'Area': 603628,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
                   'Regions': {}}
@@ -302,7 +319,7 @@ class iCovid (iCovidBase):
         return config
 
     def _upd_isr(self):
-        config = {'Name': 'Ізраїль', 'Code': 'isr', 'ViewBoxSz': '0 0 300 850',
+        config = {'Name': 'Ізраїль', 'Code': 'isr', 'ViewBoxSz': '0 0 250 800',
                   'Population': 9136000, 'Area': 20770,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
                   'Regions': {}}
@@ -317,8 +334,9 @@ class iCovid (iCovidBase):
         self.logger.normal(' - Збір загальних даних з govextra.gov.il ..')
         page = self._web_request('https://govextra.gov.il/ministry-of-health/corona/corona-virus/')
 
-        total = self._html_get_node(page, './/div[@class="corona-xl corona-bold corona-sickmiddle"]', nid=0)
-        config['Sick'] = int(total.text.replace(',', ''))
+        testsick = self._html_get_node(page, './/div[@class="corona-xl corona-bold corona-sickmiddle"]')
+        config['Tested'] = int(testsick[0].text.replace(',', ''))
+        config['Sick'] = int(testsick[1].text.replace(',', ''))
 
         deadrec = self._html_get_node(page, './/div[@class="corona-lg corona-bold"]')
         config['Dead'] = int(deadrec[0].text.replace(',', ''))
@@ -363,6 +381,75 @@ class iCovid (iCovidBase):
 
         return config
 
+    def _upd_pol(self):
+        config = {'Name': 'Польща', 'Code': 'pol', 'ViewBoxSz': '0 0 650 600',
+                  'Population': 38433600, 'Area': 312679,
+                  'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
+                  'Regions': {}}
+
+        config = self.__upd_pol_total(config)
+        config = self.__upd_pol_regions(config)
+
+        return config
+
+    def __upd_pol_total(self, config):
+        # news.google.com
+        self.logger.normal(' - Збір загальних даних з news.google.com ..')
+        page = self._web_request('https://news.google.com/covid19/map?hl=uk&gl=UA&ceid=UA%3Auk&mid=%2Fm%2F05qhw')
+
+        total_info = self._html_get_node(page, './/div[@class="tZjT9b"]//div[contains(@class, "fNm5wd")]')
+        sick = total_info[0].xpath('.//div[@class="UvMayb"]')[0].text
+        config['Sick'] = int(sick.replace('\xa0', ''))
+
+        recv = total_info[1].xpath('.//div[@class="UvMayb"]')[0].text
+        config['Recovered'] = int(recv.replace('\xa0', ''))
+
+        dead = total_info[2].xpath('.//div[@class="UvMayb"]')[0].text
+        config['Dead'] = int(recv.replace('\xa0', ''))
+
+        return config
+
+    def __upd_pol_regions(self, config):
+        # news.google.com
+        self.logger.normal(' - Збір даних про регіони з news.google.com ..')
+        page = self._web_request('https://news.google.com/covid19/map?hl=uk&gl=UA&ceid=UA%3Auk&mid=%2Fm%2F05qhw')
+
+        # initial regions data
+        initial = ['Мазовецьке воєводство', 'Сілезьке воєводство',
+                   'Нижньосілезьке воєводство', 'Великопольське воєводство',
+                   'Лодзьке воєводство', 'Малопольське воєводство',
+                   'Куявсько-Поморське воєводство', 'Поморське воєводство',
+                   'Опольске воєводство', 'Західнопоморське воєводство',
+                   'Підляське воєводство', 'Люблінське воєводство',
+                   'Підкарпатське воєводство', 'Свентокшиське воєводство',
+                   'Вармінсько-Мазурське воєводство', 'Любуське воєводство']
+        config['Regions'] = {k: 0 for k in initial}
+
+        # used to store data under better regions naming
+        name_mapping = {'Мазовецьке': 'Мазовецьке воєводство',
+                        'Шльонське воєводство': 'Сілезьке воєводство',
+                        'Нижньосілезьке': 'Нижньосілезьке воєводство',
+                        'Лодзький': 'Лодзьке воєводство',
+                        'Малопольське': 'Малопольське воєводство',
+                        'Куявсько-Поморське': 'Куявсько-Поморське воєводство',
+                        'Поморські': 'Поморське воєводство',
+                        'Опольске': 'Опольске воєводство',
+                        'Заходньопоморське воєводство': 'Західнопоморське воєводство',
+                        'Подкарпатське воєводство': 'Підкарпатське воєводство',
+                        'Вармінсько-Мазурське': 'Вармінсько-Мазурське воєводство',
+                        'Любуске': 'Любуське воєводство'}
+
+        # get regions. skip first two general nodes
+        regions = self._html_get_node(page, './/tbody[@class="ppcUXd"]//tr')[2:]
+        for region in regions:
+            reg = region.xpath('.//th//div//span')[0].text
+            reg_name = name_mapping.get(reg, reg)
+
+            sick = region.xpath('.//td')[0].text.strip().replace('\xa0', '')
+            config['Regions'][reg_name] = int(sick)
+
+        return config
+
     def __str__(self):
         ''' Show COVID information '''
         # get input data
@@ -374,7 +461,7 @@ class iCovid (iCovidBase):
 
         for country, cfg in data_today.items():
             # yesterday configuration
-            ycfg = data_yestd[country]
+            ycfg = data_yestd.get(country, cfg)
 
             # sort regions
             regions = {k: v for k, v in sorted(cfg['Regions'].items(),
@@ -382,7 +469,7 @@ class iCovid (iCovidBase):
                                                reverse=True)}
 
             # sort regions delta
-            rd = {k: v - ycfg['Regions'][k] for k, v in cfg['Regions'].items()}
+            rd = {k: v - ycfg['Regions'].get(k, v) for k, v in cfg['Regions'].items()}
             rd_sick = {k: v for k, v in sorted(rd.items(),
                                                key=lambda it: it[1],
                                                reverse=True)}
@@ -395,15 +482,15 @@ class iCovid (iCovidBase):
 
             # total information
             text += ' .{:-<76}.\n'.format('')
-            block = '   {:>10} | {:^20} | {:<+6}  {:>10} | {:^20} | {:<+6}\n'
+            block = '   {:>10} | {:^20} | {:<+7}  {:>10} | {:^20} | {:<+7}\n'
 
-            d_test = cfg['Tested'] - ycfg['Tested']
-            d_recv = cfg['Recovered'] - ycfg['Recovered']
+            d_test = cfg['Tested'] - ycfg.get('Tested', cfg['Tested'])
+            d_recv = cfg['Recovered'] - ycfg.get('Recovered', cfg['Recovered'])
             text += block.format(cfg['Tested'], colour.set(colour.fg.grey, 'Перевірені'), d_test,
                                  cfg['Recovered'], colour.set(colour.fg.green, 'Одужали'), d_recv)
 
-            d_sick = cfg['Sick'] - ycfg['Sick']
-            d_dead = cfg['Dead'] - ycfg['Dead']
+            d_sick = cfg['Sick'] - ycfg.get('Sick', cfg['Sick'])
+            d_dead = cfg['Dead'] - ycfg.get('Dead', cfg['Dead'])
             text += block.format(cfg['Sick'], colour.set(colour.fg.yellow, 'Хворі'), d_sick,
                                  cfg['Dead'], colour.set(colour.fg.red, 'Померли'), d_dead)
 
@@ -446,7 +533,7 @@ class iCovid (iCovidBase):
         # define templates for complex nodes
         total_tmpl = '{}<div id="total_{}" title="{}" tested="{}" sick="{}" recovered="{}" dead="{}" style="display: none;"></div>\n'
         country_tmpl = '''<div class="tab">
-                <input type="radio" name="tabgroup" id="{0}" onclick="country_changed('{0}')" {1}>
+                <input type="radio" name="tabgroup" id="{0}" onclick="country_changed('{0}')" autocomplete="off" {1}>
                 <label for="{0}">{2}</label>
                 <div class="tab_content">
                     <svg id="map" viewBox="{3}">

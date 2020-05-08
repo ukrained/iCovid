@@ -151,16 +151,16 @@ th, td {
     padding: 5px;
 }
 
+#data_row {
+    height: 35px;
+}
+
 #rd_name {
     width: 275px;
 }
 
 .thcell:hover {
     background-color: #aaa;
-}
-
-.trcell:hover {
-    background-color: lightgoldenrodyellow;
 }
 
 #footer {

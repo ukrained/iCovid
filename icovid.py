@@ -11,6 +11,7 @@ import urllib.request
 import urllib.parse
 import argparse
 import json
+import glob
 import re
 import os
 
@@ -214,6 +215,24 @@ class iCovidBase:
         self.logger = logger(log_level)
         self.db = dbWorker('icovid.db', self.logger.get_lvl())
 
+        self._vocab = {}
+        self._load_vocabs()
+
+    def _load_vocabs(self):
+        vocabs = [file for file in glob.glob("*.vocab")]
+
+        for vocab in vocabs:
+            slang, dlang = os.path.basename(vocab).split('.')[0].split('_')
+
+            # create vocabularies if not exist
+            self._vocab[slang] = self._vocab.get(slang, {})
+            self._vocab[slang][dlang] = self._vocab[slang].get(dlang, {})
+
+            with open(vocab, 'r+') as fp:
+                self._vocab[slang][dlang] = json.load(fp)
+
+            self.logger.success('Словник "%s-%s" підвантажено' % (slang, dlang))
+
     def _web_request(self, url):
         ''' Function perform HTML page request
 
@@ -237,6 +256,15 @@ class iCovidBase:
         nodes = tree.xpath(pattern)
 
         return nodes[nid] if nid is not None else nodes
+
+    def __del__(self):
+        for slang in self._vocab:
+            for dlang in self._vocab[slang]:
+                vocab = '%s_%s.vocab' % (slang, dlang)
+                with open(vocab, 'w+') as fp:
+                    json.dump(self._vocab[slang][dlang], fp, indent=4, ensure_ascii=False)
+
+        self.logger.normal('Словники збережено')
 
 
 class iCovid (iCovidBase):
@@ -309,11 +337,11 @@ class iCovid (iCovidBase):
                    "Черкаська область", "Чернігівська область"]
         config['Regions'] = {k: 0 for k in initial}
 
-        # regions = self._html_get_node(page, './/div[@class="editor"]//ul')[0].xpath('.//li')
-        regions = self._html_get_node(page, './/div[@class="editor"]//p')[2].text_content().split('\n')
+        regions = self._html_get_node(page, './/div[@class="editor"]//ul')[0].xpath('.//li')
+        # regions = self._html_get_node(page, './/div[@class="editor"]//p')[2].text_content().split('\n')
         for region in regions:
-            # reg, sick = region.text.replace('\xa0', '').split(' — ')
-            reg, sick = region.replace('\xa0', '').split(' — ')
+            reg, sick = region.text.replace('\xa0', '').split(' — ')
+            # reg, sick = region.replace('\xa0', '').split(' — ')
             config['Regions'][reg] = int(sick.strip().split()[0])
 
         return config
@@ -370,7 +398,7 @@ class iCovid (iCovidBase):
             reg_name = name_mapping.get(reg, reg)
 
             sick = region.xpath('.//td')[0].text.strip().replace('\xa0', '')
-            config['Regions'][reg_name] = int(sick)
+            config['Regions'][reg_name] = int(sick) if sick != '—' else 0
 
         # update Palestine separately
         page = self._web_request('https://news.google.com/covid19/map?hl=uk&gl=UA&ceid=UA%3Auk&mid=%2Fm%2F01k0p4')
@@ -397,16 +425,15 @@ class iCovid (iCovidBase):
         self.logger.normal(' - Збір загальних даних з news.google.com ..')
         page = self._web_request('https://news.google.com/covid19/map?hl=uk&gl=UA&ceid=UA%3Auk&mid=%2Fm%2F05qhw')
 
-        total_info = self._html_get_node(page, './/div[@class="tZjT9b"]//div[contains(@class, "fNm5wd")]')
-        sick = total_info[0].xpath('.//div[@class="UvMayb"]')[0].text
-        config['Sick'] = int(sick.replace('\xa0', ''))
+        total_info = self._html_get_node(page, './/tbody[@class="ppcUXd"]//tr')[1]
+        sick = total_info.xpath('.//td')[0].text.strip().replace('\xa0', '')
+        config['Sick'] = int(sick) if sick != '—' else 0
 
-        recv = total_info[1].xpath('.//div[@class="UvMayb"]')[0].text
-        config['Recovered'] = int(recv.replace('\xa0', ''))
+        recv = total_info.xpath('.//td')[2].text.strip().replace('\xa0', '')
+        config['Recovered'] = int(recv) if sick != '—' else 0
 
-        dead = total_info[2].xpath('.//div[@class="UvMayb"]')[0].text
-        config['Dead'] = int(recv.replace('\xa0', ''))
-
+        dead = total_info.xpath('.//td')[3].text.strip().replace('\xa0', '')
+        config['Dead'] = int(dead) if sick != '—' else 0
         return config
 
     def __upd_pol_regions(self, config):
@@ -446,7 +473,7 @@ class iCovid (iCovidBase):
             reg_name = name_mapping.get(reg, reg)
 
             sick = region.xpath('.//td')[0].text.strip().replace('\xa0', '')
-            config['Regions'][reg_name] = int(sick)
+            config['Regions'][reg_name] = int(sick) if sick != '—' else 0
 
         return config
 
@@ -457,7 +484,8 @@ class iCovid (iCovidBase):
         data_yestd = self.db.get({'date': (date.today() - timedelta(days=1)).strftime("%d %b %Y")})
 
         # datetime object containing current date and time
-        text = '\n * Дані станом на {:%d %B %Y [%H:%M:%S]}\n'.format(datetime.now())
+        curr_date = '\n * Дані станом на {:%d %B %Y [%H:%M:%S]}\n'.format(datetime.now())
+        text = self.translate('eng', 'ukr', curr_date)
 
         for country, cfg in data_today.items():
             # yesterday configuration
@@ -528,23 +556,31 @@ class iCovid (iCovidBase):
 
         return text
 
+    def translate(self, slang, dlang, msg):
+        tokens_base = self._vocab.get(slang, {}).get(dlang, {})
+
+        for token, translation in tokens_base.items():
+            msg = msg.replace(token, translation)
+
+        return msg
+
     def _html_report(self):
         ''' Export data to HTML web page '''
         # define templates for complex nodes
-        total_tmpl = '{}<div id="total_{}" title="{}" tested="{}" sick="{}" recovered="{}" dead="{}" style="display: none;"></div>\n'
-        country_tmpl = '''<div class="tab">
-                <input type="radio" name="tabgroup" id="{0}" onclick="country_changed('{0}')" autocomplete="off" {1}>
-                <label for="{0}">{2}</label>
-                <div class="tab_content">
-                    <svg id="map" viewBox="{3}">
-                        <g>
-{4}
-                        </g>
-                    </svg>
-                </div>
-            </div>
-            '''
-        region_tmpl = '{}<path title="{}" tested="{}" sick="{}" recovered="{}" dead="{}" style="fill: rgb({}, {}, {});" class="land enabled" onclick="copy_info()" d="{}"/>\n'
+        total_tmpl = '{}<div id="total{}" title="{}" tested="{}" d_tested="{}" sick="{}" d_sick="{}" recovered="{}" d_recovered="{}" dead="{}" d_dead="{}" style="display: none;"></div>\n'
+        country_tmpl = \
+            '           <div class="tab">\n' \
+            '               <input type="radio" name="tabgroup" id="{0}" onclick="country_changed(\'{0}\')" autocomplete="off" {1}>\n' \
+            '                <label for="{0}">{2}</label>\n' \
+            '                <div class="tab_content">\n' \
+            '                    <svg id="map" viewBox="{3}">\n' \
+            '                        <g>\n' \
+            '{4}' \
+            '                        </g>\n' \
+            '                    </svg>\n' \
+            '                </div>\n' \
+            '            </div>\n'
+        region_tmpl = '{}<path title="{}" tested="{}" sick="{}" recovered="{}" dead="{}"style="fill: rgb({}, {}, {});" class="land enabled" onclick="copy_info()" d="{}"/>\n'
 
         # create htmlWorker object
         html = htmlWorker('./report/report.html', './report/index.html')
@@ -566,15 +602,35 @@ class iCovid (iCovidBase):
 
         # get data for current date
         today_data = self.db.get({'date': curr_date})
+        yestd_data = self.db.get({'date': (date.today() - timedelta(days=1)).strftime("%d %b %Y")})
 
         # stage 1 - date of latest data update
-        updated = curr_date
+        updated = self.translate('eng', 'ukr', curr_date)
+
+        # configure default information
+
+        # <div class="description"></div>
+        # <div id="total"     title="Україна" tested="151569" d_tested="2020" sick="13691" d_sick="-100" recovered="2396"  d_recovered="10" dead="340" d_dead="5" style="display: none;"></div>
+        # <div id="total_ukr" title="Україна" tested="151569" d_tested="2020" sick="13691" d_sick="-100" recovered="2396"  d_recovered="10" dead="340" d_dead="5" style="display: none;"></div>
+        # <div id="total_isr" title="Ізраїль" tested="432453" d_tested="1010" sick="16346" d_sick="50"   recovered="10737" d_recovered="20" dead="239" d_dead="2" style="display: none;"></div>
+        # <div id="total_pol" title="Польща"  tested="0"      d_tested="5050" sick="14740" d_sick="150"  recovered="4655"  d_recovered="15" dead="733" d_dead="7" style="display: none;"></div>
+
+        default = today_data.get('Україна')
+        y_default = yestd_data.get('Україна')
+        total = total_tmpl.format(tab * 2, '', default['Name'],
+                                  default['Tested'], default['Tested'] - y_default['Tested'],
+                                  default['Sick'], default['Sick'] - y_default['Sick'],
+                                  default['Recovered'], default['Recovered'] - y_default['Recovered'],
+                                  default['Dead'], default['Dead'] - y_default['Dead'])
 
         for country, data in today_data.items():
+            y_data = yestd_data.get(country)
             # stage 2 - prepare total info for the country
-            total += total_tmpl.format(tab * 2, data['Code'], data['Name'],
-                                       data['Tested'], data['Sick'],
-                                       data['Recovered'], data['Dead'])
+            total += total_tmpl.format(tab * 2, '_%s' % data['Code'], data['Name'],
+                                       data['Tested'], data['Tested'] - y_data['Tested'],
+                                       data['Sick'], data['Sick'] - y_data['Sick'],
+                                       data['Recovered'], data['Recovered'] - y_data['Recovered'],
+                                       data['Dead'], data['Dead'] - y_data['Dead'])
 
             # stage 3 - regions data
             max_sick = max(data['Regions'].values())

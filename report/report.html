@@ -19,7 +19,7 @@
         </div>
 
         <div data-tabs class="tabs">
-            {{ regions }}
+{{ regions }}
         </div>
 
         <div id="regioninfo">
@@ -31,12 +31,12 @@
                     <th class="thcell">Одужали 💖</th>
                     <th class="thcell">Померли 💢</th>
                 </tr>
-                <tr>
+                <tr id="data_row">
                     <td id="rd_name" class="trcell"></td>
-                    <td id="rd_test" class="trcell"></td>
-                    <td id="rd_sick" class="trcell"></td>
-                    <td id="rd_recv" class="trcell"></td>
-                    <td id="rd_dead" class="trcell"></td>
+                    <td id="rd_test" class="trcell delta" delta="" text=""></td>
+                    <td id="rd_sick" class="trcell delta" delta="" text=""></td>
+                    <td id="rd_recv" class="trcell delta" delta="" text=""></td>
+                    <td id="rd_dead" class="trcell delta" delta="" text=""></td>
                 </tr>
             </table>
         </div>
@@ -51,7 +51,6 @@
         </div>
 
         <div class="description"></div>
-        <div id="total" title="Україна" tested="111859" sick="10406" recovered="1238" dead="261" style="display: none;"></div>
 {{ total }}
 
         <script src='https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js'></script>

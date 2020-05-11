@@ -20,12 +20,21 @@ $(document).ready(function(){
     $('#rd_recv').html($('#total').attr('recovered'))
     $('#rd_dead').html($('#total').attr('dead'))
 
+    $('#rd_test').attr('text', $('#total').attr('tested'))
+    $('#rd_sick').attr('text', $('#total').attr('sick'))
+    $('#rd_recv').attr('text', $('#total').attr('recovered'))
+    $('#rd_dead').attr('text', $('#total').attr('dead'))
+
+    $('#rd_test').attr('delta', $('#total').attr('d_tested'))
+    $('#rd_sick').attr('delta', $('#total').attr('d_sick'))
+    $('#rd_recv').attr('delta', $('#total').attr('d_recovered'))
+    $('#rd_dead').attr('delta', $('#total').attr('d_dead'))
+
     /* Welcome message */
-    msg = 'Вітаємо!<br>На цій сторінці ви можете отримати коротку інформацію про поширення вірусу SARS-nCov-2 на теренах України, Ізраїлю та Польщі.<br><br>👉 Щоб отримати інформацію про певний регіон, наведіть на нього вказівник.<br><br>👉 Щоб скопіювати дані, натисність на регіон чи на панель даних.<br><br>Гарного вам дня!';
-    nofity(msg, 15000);
+    msg = 'Вітаємо!<br>На цій сторінці ви можете отримати коротку інформацію про поширення вірусу SARS-nCov-2 на теренах України та країн світу.<br><br>👉 Щоб отримати інформацію про певний регіон, наведіть на нього вказівник.<br><br>👉 Щоб побачити зміну кількості осіб відносно попередньої доби, наведіть на значення потрібного критерію.<br><br>👉 Щоб скопіювати дані, натисність на регіон чи на його назву у панелі даних.<br><br>Гарного вам дня!';
+    notify(msg, 15000);
 
 });
-
 
 $('.enabled').hover(
     function() {
@@ -46,6 +55,24 @@ $('.enabled').hover(
         $('#rd_sick').html($('#total').attr('sick'))
         $('#rd_recv').html($('#total').attr('recovered'))
         $('#rd_dead').html($('#total').attr('dead'))
+});
+
+$('.delta').hover(
+    function() {
+        delta = parseInt($(this).attr('delta'));
+        if (delta > 0) {
+            $(this).css("background-color", "lightcoral");
+        } else {
+            $(this).css("background-color", "lightgreen");
+        }
+
+        sign = delta > 0 ? '🔼 ' : '🔽 ';
+        num = delta > 0 ? delta : -delta;
+        $(this).text(sign + num);
+    },
+    function() {
+        $(this).css("background-color", "white");
+        $(this).text($(this).attr('text'));
 });
 
 $(document).on('mousemove', function(e){
@@ -75,20 +102,35 @@ function country_changed(name) {
         $('#total').attr('sick',      $(node_id).attr('sick'));
         $('#total').attr('recovered', $(node_id).attr('recovered'));
         $('#total').attr('dead',      $(node_id).attr('dead'));
+
+        $('#total').attr('d_tested',    $(node_id).attr('d_tested'));
+        $('#total').attr('d_sick',      $(node_id).attr('d_sick'));
+        $('#total').attr('d_recovered', $(node_id).attr('d_recovered'));
+        $('#total').attr('d_dead',      $(node_id).attr('d_dead'));
     } else {
         $('#total').attr('title',     '—');
         $('#total').attr('tested',    '—');
         $('#total').attr('sick',      '—');
         $('#total').attr('recovered', '—');
         $('#total').attr('dead',      '—');
+
+        $('#total').attr('d_tested',    '—');
+        $('#total').attr('d_sick',      '—');
+        $('#total').attr('d_recovered', '—');
+        $('#total').attr('d_dead',      '—');
     }
 
     /* Initialize total data */
-    $('#rd_name').html($('#total').attr('title'))
-    $('#rd_test').html($('#total').attr('tested'))
-    $('#rd_sick').html($('#total').attr('sick'))
-    $('#rd_recv').html($('#total').attr('recovered'))
-    $('#rd_dead').html($('#total').attr('dead'))
+    $('#rd_name').html($('#total').attr('title'));
+    $('#rd_test').html($('#total').attr('tested'));
+    $('#rd_sick').html($('#total').attr('sick'));
+    $('#rd_recv').html($('#total').attr('recovered'));
+    $('#rd_dead').html($('#total').attr('dead'));
+
+    $('#rd_test').attr('delta', $('#total').attr('d_tested'));
+    $('#rd_sick').attr('delta', $('#total').attr('d_sick'));
+    $('#rd_recv').attr('delta', $('#total').attr('d_recovered'));
+    $('#rd_dead').attr('delta', $('#total').attr('d_dead'));
 }
 
 /* Copy current region to clipboard.
@@ -103,21 +145,21 @@ function copy2clipboard(text) {
 }
 
 function copy_info() {
-    data = '[' + $('#rd_name').text() + ' / ' +
-           'перевірені: ' + $('#rd_test').text() + ' / ' +
-           'хворі: '      + $('#rd_sick').text() + ' / ' +
-           'одужали: '    + $('#rd_recv').text() + ' / ' +
-           'померли: '    + $('#rd_dead').text() + ']';
+    data = ' У регіоні "' + $('#rd_name').text() + '" ' +
+           'перевірили '  + $('#rd_test').text() + ' осіб, ' +
+           'захворіли '   + $('#rd_sick').text() + ' осіб, ' +
+           'одужали '     + $('#rd_recv').text() + ' осіб та ' +
+           'померли '     + $('#rd_dead').text() + ' осіб. ';
 
     copy2clipboard(data);
     msg = 'Дані про регіон \"' + $('#rd_name').text() + '\" скопійовано в буфер.';
-    nofity(msg, 3000);
+    notify(msg, 3000);
 }
 
 /* Notification.
  * Create notification to user.
  */
-function nofity(text, time) {
+function notify(text, time) {
     if ($notification != -1) {
         clearTimeout($notification);
     }

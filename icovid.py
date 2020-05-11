@@ -2,15 +2,18 @@
 
 # metadata
 __title__ = 'iCovid Monitoring Utility'
-__version__ = '0.8.7[b]'
-__release__ = '1 May 2020'
+__version__ = '0.9.4[rc]'
+__release__ = '11 May 2020'
 __author__ = 'Alex Viytiv'
 
 # modules
 import urllib.request
 import urllib.parse
+import requests
 import argparse
 import json
+import glob
+import ssl
 import re
 import os
 
@@ -19,6 +22,7 @@ from ftplib import FTP
 from getpass import getpass
 from datetime import datetime, date, timedelta
 from utils import colour, logLevel, logger
+from urllib.parse import quote
 
 
 class htmlWorker:
@@ -214,16 +218,33 @@ class iCovidBase:
         self.logger = logger(log_level)
         self.db = dbWorker('icovid.db', self.logger.get_lvl())
 
+        self._vocab = {}
+        self._load_vocabs()
+
+    def _load_vocabs(self):
+        vocabs = [file for file in glob.glob("*.vocab")]
+
+        for vocab in vocabs:
+            slang, dlang = os.path.basename(vocab).split('.')[0].split('_')
+
+            # create vocabularies if not exist
+            self._vocab[slang] = self._vocab.get(slang, {})
+            self._vocab[slang][dlang] = self._vocab[slang].get(dlang, {})
+
+            with open(vocab, 'r+') as fp:
+                self._vocab[slang][dlang] = json.load(fp)
+
+            self.logger.success('Словник "%s-%s" підвантажено' % (slang, dlang))
+
     def _web_request(self, url):
         ''' Function perform HTML page request
 
         :param url: URL to webpage
         :return: 'utf-8'-encoded HTML page
         '''
-        with urllib.request.urlopen(urllib.request.Request(url)) as response:
-            html = response.read()
+        html = requests.get(url).text
 
-        return html.decode('utf-8')
+        return html  # .decode('utf-8')
 
     def _html_get_node(self, html_buffer, pattern, nid=None):
         ''' Function lookup HTML content
@@ -238,6 +259,15 @@ class iCovidBase:
 
         return nodes[nid] if nid is not None else nodes
 
+    def __del__(self):
+        for slang in self._vocab:
+            for dlang in self._vocab[slang]:
+                vocab = '%s_%s.vocab' % (slang, dlang)
+                with open(vocab, 'w+') as fp:
+                    json.dump(self._vocab[slang][dlang], fp, indent=4, ensure_ascii=False)
+
+        self.logger.normal('Словники збережено')
+
 
 class iCovid (iCovidBase):
     def __init__(self, debug=False):
@@ -251,7 +281,8 @@ class iCovid (iCovidBase):
     def update(self):
         ''' Update latest data '''
         # update callbacks
-        upd_cbs = [self._upd_ukr, self._upd_isr, self._upd_pol]
+        upd_cbs = [self._upd_ukr, self._upd_isr, self._upd_pol, self._upd_rus,
+                   self._upd_hug]
 
         curr_date = datetime.now().strftime("%d %b %Y")
 
@@ -309,11 +340,11 @@ class iCovid (iCovidBase):
                    "Черкаська область", "Чернігівська область"]
         config['Regions'] = {k: 0 for k in initial}
 
-        # regions = self._html_get_node(page, './/div[@class="editor"]//ul')[0].xpath('.//li')
-        regions = self._html_get_node(page, './/div[@class="editor"]//p')[2].text_content().split('\n')
+        regions = self._html_get_node(page, './/div[@class="editor"]//ul')[0].xpath('.//li')
+        # regions = self._html_get_node(page, './/div[@class="editor"]//p')[2].text_content().split('\n')
         for region in regions:
-            # reg, sick = region.text.replace('\xa0', '').split(' — ')
-            reg, sick = region.replace('\xa0', '').split(' — ')
+            reg, sick = region.text.replace('\xa0', '').split(' — ')
+            # reg, sick = region.replace('\xa0', '').split(' — ')
             config['Regions'][reg] = int(sick.strip().split()[0])
 
         return config
@@ -322,7 +353,8 @@ class iCovid (iCovidBase):
         config = {'Name': 'Ізраїль', 'Code': 'isr', 'ViewBoxSz': '0 0 250 800',
                   'Population': 9136000, 'Area': 20770,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Regions': {}}
+                  'Regions': {},
+                  'vii': '☣️ Дані з багатьох регіонів Ізраїлю тимчасово недоступні.'}
 
         config = self.__upd_isr_total(config)
         config = self.__upd_isr_regions(config)
@@ -370,7 +402,7 @@ class iCovid (iCovidBase):
             reg_name = name_mapping.get(reg, reg)
 
             sick = region.xpath('.//td')[0].text.strip().replace('\xa0', '')
-            config['Regions'][reg_name] = int(sick)
+            config['Regions'][reg_name] = int(sick) if sick != '—' else 0
 
         # update Palestine separately
         page = self._web_request('https://news.google.com/covid19/map?hl=uk&gl=UA&ceid=UA%3Auk&mid=%2Fm%2F01k0p4')
@@ -397,15 +429,20 @@ class iCovid (iCovidBase):
         self.logger.normal(' - Збір загальних даних з news.google.com ..')
         page = self._web_request('https://news.google.com/covid19/map?hl=uk&gl=UA&ceid=UA%3Auk&mid=%2Fm%2F05qhw')
 
-        total_info = self._html_get_node(page, './/div[@class="tZjT9b"]//div[contains(@class, "fNm5wd")]')
-        sick = total_info[0].xpath('.//div[@class="UvMayb"]')[0].text
-        config['Sick'] = int(sick.replace('\xa0', ''))
+        # manually updated value due to inability to scrap
+        # this data from the network
+        # source: https://twitter.com/MZ_GOV_PL
+        config['Tested'] = 443506
 
-        recv = total_info[1].xpath('.//div[@class="UvMayb"]')[0].text
-        config['Recovered'] = int(recv.replace('\xa0', ''))
+        total_info = self._html_get_node(page, './/tbody[@class="ppcUXd"]//tr')[1]
+        sick = total_info.xpath('.//td')[0].text.strip().replace('\xa0', '')
+        config['Sick'] = int(sick) if sick != '—' else 0
 
-        dead = total_info[2].xpath('.//div[@class="UvMayb"]')[0].text
-        config['Dead'] = int(recv.replace('\xa0', ''))
+        recv = total_info.xpath('.//td')[2].text.strip().replace('\xa0', '')
+        config['Recovered'] = int(recv) if sick != '—' else 0
+
+        dead = total_info.xpath('.//td')[3].text.strip().replace('\xa0', '')
+        config['Dead'] = int(dead) if sick != '—' else 0
 
         return config
 
@@ -446,7 +483,280 @@ class iCovid (iCovidBase):
             reg_name = name_mapping.get(reg, reg)
 
             sick = region.xpath('.//td')[0].text.strip().replace('\xa0', '')
-            config['Regions'][reg_name] = int(sick)
+            config['Regions'][reg_name] = int(sick) if sick != '—' else 0
+
+        return config
+
+    def _upd_rus(self):
+        config = {'Name': 'Московія', 'Code': 'rus', 'ViewBoxSz': '0 0 1250 800',
+                  'Population': 144526636, 'Area': 17098246,
+                  'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
+                  'Regions': {}}
+
+        config = self.__upd_rus_total(config)
+        config = self.__upd_rus_regions(config)
+
+        return config
+
+    def __upd_rus_total(self, config):
+        # news.google.com
+        self.logger.normal(' - Збір загальних даних з стопкоронавирус.рф ..')
+        page = self._web_request('https://стопкоронавирус.рф/information')
+
+        total_info = self._html_get_node(page, './/cv-stats-virus', nid=0)
+        data = json.loads(total_info.attrib.get(':stats-data', '{}'))
+        data['tested'] = data['tested'].replace(',', '.')
+
+        numeric_const_pattern = '[-+]?(?:(?:\d*\.\d+)|(?:\d+\.?))(?:[Ee][+-]?\d+)?'
+        rx = re.compile(numeric_const_pattern, re.VERBOSE)
+
+        config['Tested'] = int(float(rx.findall(data['tested'])[0]) * 10**6)
+        config['Sick'] = int(data.get('sick', 0).replace(' ', ''))
+        config['Recovered'] = int(data.get('healed', 0).replace(' ', ''))
+        config['Dead'] = int(data.get('died', 0).replace(' ', ''))
+        return config
+
+    def __upd_rus_regions(self, config):
+        # news.google.com
+        self.logger.normal(' - Збір даних про регіони з стопкоронавирус.рф ..')
+        page = self._web_request('https://стопкоронавирус.рф/information')
+
+        # initial regions data
+        initial = ['м. Москва', 'Московська область',
+                   'м. Санкт-Петербург', 'Нижньогородська область',
+                   'Республіка Дагестан', 'Мурманська область',
+                   'Краснодарський край', 'Тульська область',
+                   'Ростовська область', 'Свердловська область',
+                   'Калузька область', 'Брянська область',
+                   'Республіка Татарстан', 'Рязанська область',
+                   'Республіка Північна Осетія - Аланія',
+                   'Ленінградська область', 'Республіка Башкортостан',
+                   'Курська область', 'Тамбовська область',
+                   'Володимирська область', 'Республіка Інгушетія',
+                   'Кабардино-Балкарська республіка', 'Республіка Мордовія',
+                   'Ямало-Ненетський авт. округ', 'Республіка Чувашія',
+                   'Ярославська область', 'Красноярський край',
+                   'Саратовська область', 'Новосибірська область',
+                   'Ставропольський край', 'Орловська область',
+                   'Челябінська область', 'Оренбурзька область',
+                   'Республіка Марій Ел', 'Хабаровський край',
+                   'Самарська область', 'Республіка Комі',
+                   'Волгоградська область', 'Тверська область',
+                   'Воронезька область', 'Приморський край',
+                   'Липецька область', 'Пермський край',
+                   'Кіровська область', 'Тюменська область',
+                   'Чеченська Республіка', 'Ульянівська область',
+                   'Пензенська область', 'Іванівська область',
+                   'Смоленська область', 'Калінінградська область',
+                   'Астраханська область', 'Алтайський край',
+                   'Білгородська область', 'Ханти-Мансійський авт. округ',
+                   'Республіка Бурятія', 'Карачаєво-Черкеська Республіка',
+                   'Новгородська область', 'Республіка Саха (Якутія)',
+                   'Республіка Калмикія', 'Архангельська область',
+                   'Республіка Хакасія', 'Камчатський край',
+                   'Удмуртська Республіка', 'Костромська область',
+                   'Псковська область', 'Забайкальський край',
+                   'Іркутська область', 'Вологодська область',
+                   'Омська область', 'Республіка Адигея',
+                   'Кемеровська область', 'Томська область',
+                   'Єврейська автономна область', 'Магаданська область',
+                   'Республіка Карелія', 'Амурська область',
+                   'Курганська область', 'Республіка Тива (Тува)',
+                   'Ненецький авт. округ', 'Сахалінська область',
+                   'Чукотський авт. округ', 'Республіка Алтай']
+        config['Regions'] = {k: 0 for k in initial}
+
+        # used to store data under better regions naming
+        name_mapping = {'Москва': 'м. Москва',
+                        'Московская область': 'Московська область',
+                        'Санкт-Петербург': "м. Санкт-Петербург",
+                        'Нижегородская область': "Нижньогородська область",
+                        'Республика Дагестан': "Республіка Дагестан",
+                        'Мурманская область': "Мурманська область",
+                        'Краснодарский край': "Краснодарський край",
+                        'Тульская область': "Тульська область",
+                        'Ростовская область': "Ростовська область",
+                        'Свердловская область': "Свердловська область",
+                        'Калужская область': "Калузька область",
+                        'Брянская область': "Брянська область",
+                        'Республика Татарстан': "Республіка Татарстан",
+                        'Рязанская область': "Рязанська область",
+                        'Республика Северная Осетия — Алания': "Республіка Північна Осетія - Аланія",
+                        'Ленинградская область': "Ленінградська область",
+                        'Республика Башкортостан': "Республіка Башкортостан",
+                        'Курская область': "Курська область",
+                        'Тамбовская область': "Тамбовська область",
+                        'Владимирская область': "Володимирська область",
+                        'Республика Ингушетия': "Республіка Інгушетія",
+                        'Кабардино-Балкарская Республика': "Кабардино-Балкарська республіка",
+                        'Республика Мордовия': "Республіка Мордовія",
+                        'Ямало-Ненецкий автономный округ': "Ямало-Ненетський авт. округ",
+                        'Республика Чувашия': "Республіка Чувашія",
+                        'Ярославская область': "Ярославська область",
+                        'Красноярский край': "Красноярський край",
+                        'Саратовская область': "Саратовська область",
+                        'Новосибирская область': "Новосибірська область",
+                        'Ставропольский край': "Ставропольський край",
+                        'Орловская область': "Орловська область",
+                        'Челябинская область': "Челябінська область",
+                        'Оренбургская область': "Оренбурзька область",
+                        'Республика Марий Эл': "Республіка Марій Ел",
+                        'Хабаровский край': "Хабаровський край",
+                        'Самарская область': "Самарська область",
+                        'Республика Коми': "Республіка Комі",
+                        'Волгоградская область': "Волгоградська область",
+                        'Тверская область': "Тверська область",
+                        'Воронежская область': "Воронезька область",
+                        'Приморский край': "Приморський край",
+                        'Липецкая область': "Липецька область",
+                        'Пермский край': "Пермський край",
+                        'Кировская область': "Кіровська область",
+                        'Тюменская область': "Тюменська область",
+                        'Чеченская Республика': "Чеченська Республіка",
+                        'Ульяновская область': "Ульянівська область",
+                        'Пензенская область': "Пензенська область",
+                        'Ивановская область': "Іванівська область",
+                        'Смоленская область': "Смоленська область",
+                        'Калининградская область': "Калінінградська область",
+                        'Астраханская область': "Астраханська область",
+                        'Алтайский край': "Алтайський край",
+                        'Белгородская область': "Білгородська область",
+                        'Ханты-Мансийский АО': "Ханти-Мансійський авт. округ",
+                        'Республика Бурятия': "Республіка Бурятія",
+                        'Карачаево-Черкесская Республика': "Карачаєво-Черкеська Республіка",
+                        'Новгородская область': "Новгородська область",
+                        'Республика Саха (Якутия)': "Республіка Саха (Якутія)",
+                        'Республика Калмыкия': "Республіка Калмикія",
+                        'Архангельская область': "Архангельська область",
+                        'Республика Хакасия': "Республіка Хакасія",
+                        'Камчатский край': "Камчатський край",
+                        'Удмуртская Республика': "Удмуртська Республіка",
+                        'Костромская область': "Костромська область",
+                        'Псковская область': "Псковська область",
+                        'Забайкальский край': "Забайкальський край",
+                        'Иркутская область': "Іркутська область",
+                        'Вологодская область': "Вологодська область",
+                        'Омская область': "Омська область",
+                        'Республика Адыгея': "Республіка Адигея",
+                        'Кемеровская область': "Кемеровська область",
+                        'Томская область': "Томська область",
+                        'Еврейская автономная область': "Єврейська автономна область",
+                        'Магаданская область': "Магаданська область",
+                        'Республика Карелия': "Республіка Карелія",
+                        'Амурская область': "Амурська область",
+                        'Курганская область': "Курганська область",
+                        'Республика Тыва': "Республіка Тива (Тува)",
+                        'Ненецкий автономный округ': "Ненецький авт. округ",
+                        'Сахалинская область': "Сахалінська область",
+                        'Чукотский автономный округ': "Чукотський авт. округ",
+                        'Республика Алтай': "Республіка Алтай"}
+
+        # occupied regions
+        occupied_regions = {'Республика Крым': ['Україна', 'Автономна Республіка Крим'],
+                            'Севастополь': ['Україна', 'м. Севастополь']}
+
+        reg_node = self._html_get_node(page, './/cv-spread-overview', nid=0)
+        regions = json.loads(reg_node.attrib.get(':spread-data', '[]'))
+
+        # get regions. skip first two general nodes
+        for region in regions:
+            reg = region['title'].strip()
+            reg_name = name_mapping.get(reg, reg)
+
+            if reg_name in occupied_regions:
+                # special processing for occupied regions
+                curr_date = date.today().strftime("%d %b %Y")
+                db = self.db.get({'date': curr_date,
+                                  'country': occupied_regions[reg_name][0]})
+                db['Regions'][occupied_regions[reg_name][1]] = int(region['sick'])
+                self.db.update({'date': curr_date,
+                                'country': occupied_regions[reg_name][0]}, db)
+                continue
+
+            sick = int(region['sick'])
+            config['Regions'][reg_name] = sick
+
+        return config
+
+    def _upd_hug(self):
+        config = {'Name': 'Угорщина', 'Code': 'hug', 'ViewBoxSz': '0 0 630 400',
+                  'Population': 9797561, 'Area': 93030,
+                  'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
+                  'Regions': {}}
+
+        config = self.__upd_hug_total(config)
+        config = self.__upd_hug_regions(config)
+
+        return config
+
+    def __upd_hug_total(self, config):
+        # news.google.com
+        self.logger.normal(' - Збір загальних даних з news.google.com ..')
+        page = self._web_request('https://news.google.com/covid19/map?hl=uk&gl=UA&ceid=UA%3Auk&mid=%2Fm%2F03gj2')
+
+        total_info = self._html_get_node(page, './/tbody[@class="ppcUXd"]//tr')[1]
+        sick = total_info.xpath('.//td')[0].text.strip().replace('\xa0', '')
+        config['Sick'] = int(sick) if sick != '—' else 0
+
+        recv = total_info.xpath('.//td')[2].text.strip().replace('\xa0', '')
+        config['Recovered'] = int(recv) if sick != '—' else 0
+
+        dead = total_info.xpath('.//td')[3].text.strip().replace('\xa0', '')
+        config['Dead'] = int(dead) if sick != '—' else 0
+
+        page = self._web_request('https://koronavirus.gov.hu/')
+        tested = self._html_get_node(page, './/div[@id="api-mintavetel"]')[0]
+        config['Tested'] = int(tested.text.replace(' ', ''))
+        return config
+
+    def __upd_hug_regions(self, config):
+        # news.google.com
+        self.logger.normal(' - Збір даних про регіони з news.google.com ..')
+        page = self._web_request('https://news.google.com/covid19/map?hl=uk&gl=UA&ceid=UA%3Auk&mid=%2Fm%2F03gj2')
+
+        # initial regions data
+        initial = ['Медьє Бач-Кишкун', 'Медьє Бараня',
+                   'Медьє Бекеш', 'Медьє Боршод-Абауй-Земплен',
+                   'Медьє Чонґрад', 'Медьє Феєр',
+                   'Медьє Дьйор-Мошон-Шопрон', 'Медьє Гайду-Бігар',
+                   'Медьє Гевеш', 'Медьє Яс-Надькун-Сольнок',
+                   'Медьє Комаром-Естерґом', 'Медьє Ноґрад',
+                   'Медьє Пешт', 'Медьє Шомодь',
+                   'Медьє Саболч-Сатмар-Береґ', 'Медьє Толна',
+                   'Медьє Ваш', 'Медьє Веспрем',
+                   'Медьє Зала', 'м. Будапешт']
+        config['Regions'] = {k: 0 for k in initial}
+
+        # used to store data under better regions naming
+        name_mapping = {'Будапешт': 'м. Будапешт',
+                        'Пешт': 'Медьє Пешт',
+                        'Фейер': 'Медьє Феєр',
+                        'Комаром-Естерґом': 'Медьє Комаром-Естерґом',
+                        'Зала': 'Медьє Зала',
+                        'Чонґрад': 'Медьє Чонґрад',
+                        'Дьйор-Мошон-Шопрон': 'Медьє Дьйор-Мошон-Шопрон',
+                        'Боршод-Абауй-Земплєн': 'Медьє Боршод-Абауй-Земплен',
+                        'Веспрем': 'Медьє Веспрем',
+                        'Сабольч-Сатмар-Берег': 'Медьє Саболч-Сатмар-Береґ',
+                        'Баранья': 'Медьє Бараня',
+                        'Шомодь': 'Медьє Шомодь',
+                        'Ноґрад': 'Медьє Ноґрад',
+                        'Хайду-Біхар': 'Медьє Гайду-Бігар',
+                        'Бач-Кі́шкун': 'Медьє Бач-Кишкун',
+                        'Яс-Надькун-Сольнок': 'Медьє Яс-Надькун-Сольнок',
+                        'Толна': 'Медьє Толна',
+                        'Бекес': 'Медьє Бекеш',
+                        'Хевеш': 'Медьє Гевеш',
+                        'Ваш': 'Медьє Ваш'}
+
+        # get regions. skip first two general nodes
+        regions = self._html_get_node(page, './/tbody[@class="ppcUXd"]//tr')[2:]
+        for region in regions:
+            reg = region.xpath('.//th//div//span')[0].text
+            reg_name = name_mapping.get(reg, reg)
+
+            sick = region.xpath('.//td')[0].text.strip().replace('\xa0', '')
+            config['Regions'][reg_name] = int(sick) if sick != '—' else 0
 
         return config
 
@@ -457,7 +767,8 @@ class iCovid (iCovidBase):
         data_yestd = self.db.get({'date': (date.today() - timedelta(days=1)).strftime("%d %b %Y")})
 
         # datetime object containing current date and time
-        text = '\n * Дані станом на {:%d %B %Y [%H:%M:%S]}\n'.format(datetime.now())
+        curr_date = '\n * Дані станом на {:%d %B %Y [%H:%M:%S]}\n'.format(datetime.now())
+        text = self.translate('eng', 'ukr', curr_date)
 
         for country, cfg in data_today.items():
             # yesterday configuration
@@ -519,7 +830,7 @@ class iCovid (iCovidBase):
 
                     clr = zones[(sick - min_sick) // sick_step]
                     region = colour.set(clr, region) + ' '
-                    text += '   {:.<70} {:<5} | {:<5}\n'.format(region, sick, ysick)
+                    text += '   {:.<68} {:<6} | {:<5}\n'.format(region, sick, ysick)
 
             else:
                 text += '   << Немає даних по регіонах >>\n'
@@ -528,23 +839,32 @@ class iCovid (iCovidBase):
 
         return text
 
+    def translate(self, slang, dlang, msg):
+        tokens_base = self._vocab.get(slang, {}).get(dlang, {})
+
+        for token, translation in tokens_base.items():
+            msg = msg.replace(token, translation)
+
+        return msg
+
     def _html_report(self):
         ''' Export data to HTML web page '''
         # define templates for complex nodes
-        total_tmpl = '{}<div id="total_{}" title="{}" tested="{}" sick="{}" recovered="{}" dead="{}" style="display: none;"></div>\n'
-        country_tmpl = '''<div class="tab">
-                <input type="radio" name="tabgroup" id="{0}" onclick="country_changed('{0}')" autocomplete="off" {1}>
-                <label for="{0}">{2}</label>
-                <div class="tab_content">
-                    <svg id="map" viewBox="{3}">
-                        <g>
-{4}
-                        </g>
-                    </svg>
-                </div>
-            </div>
-            '''
-        region_tmpl = '{}<path title="{}" tested="{}" sick="{}" recovered="{}" dead="{}" style="fill: rgb({}, {}, {});" class="land enabled" onclick="copy_info()" d="{}"/>\n'
+        total_tmpl = '{}<div id="total{}" title="{}" tested="{}" d_tested="{}" sick="{}" d_sick="{}" recovered="{}" d_recovered="{}" dead="{}" d_dead="{}" style="display: none;"></div>\n'
+        country_tmpl = \
+            '            <div class="tab">\n' \
+            '                <input type="radio" name="tabgroup" id="{0}" onclick="country_changed(\'{0}\')" autocomplete="off" {1}>\n' \
+            '                <label for="{0}">{2}{3}</label>\n' \
+            '                <div class="tab_content">\n' \
+            '                    <svg id="map" viewBox="{4}">\n' \
+            '                        <g>\n' \
+            '{5}\n' \
+            '                        </g>\n' \
+            '                    </svg>\n' \
+            '                </div>\n' \
+            '            </div>\n'
+        region_tmpl = '{}<path title="{}" tested="{}" sick="{}" recovered="{}" dead="{}"style="fill: rgb({}, {}, {});" class="land enabled" onclick="copy_info()" d="{}"/>\n'
+        vii_tmpl = '<span class="vi_info" onclick="notify(\'{}\', 15000);">☣️</span>'
 
         # create htmlWorker object
         html = htmlWorker('./report/report.html', './report/index.html')
@@ -566,19 +886,34 @@ class iCovid (iCovidBase):
 
         # get data for current date
         today_data = self.db.get({'date': curr_date})
+        yestd_data = self.db.get({'date': (date.today() - timedelta(days=1)).strftime("%d %b %Y")})
 
         # stage 1 - date of latest data update
-        updated = curr_date
+        updated = self.translate('eng', 'ukr', curr_date)
+
+        # configure default information
+        default = today_data.get('Україна')
+        y_default = yestd_data.get('Україна')
+        total = total_tmpl.format(tab * 2, '', default['Name'],
+                                  default['Tested'], default['Tested'] - y_default.get('Tested', 0),
+                                  default['Sick'],   default['Sick'] - y_default.get('Sick', 0),
+                                  default['Recovered'], default['Recovered'] - y_default.get('Recovered', 0),
+                                  default['Dead'], default['Dead'] - y_default.get('Dead', 0))
 
         for country, data in today_data.items():
+            y_data = yestd_data.get(country, {})
             # stage 2 - prepare total info for the country
-            total += total_tmpl.format(tab * 2, data['Code'], data['Name'],
-                                       data['Tested'], data['Sick'],
-                                       data['Recovered'], data['Dead'])
+            total += total_tmpl.format(tab * 2, '_%s' % data['Code'], data['Name'],
+                                       data['Tested'], data['Tested'] - y_data.get('Tested', 0),
+                                       data['Sick'], data['Sick'] - y_data.get('Sick', 0),
+                                       data['Recovered'], data['Recovered'] - y_data.get('Recovered', 0),
+                                       data['Dead'], data['Dead'] - y_data.get('Dead', 0))
 
             # stage 3 - regions data
-            max_sick = max(data['Regions'].values())
-            color_step = max_sick / 256
+            # max_sick = max(data['Regions'].values())
+            # max_sick = sum(data['Regions'].values()) / len(data['Regions'].values())
+            max_sick = 2000
+            color_step = (max_sick / 256) or 1
 
             _regions = ''
             for region, path in regions_map[data['Name']].items():
@@ -601,9 +936,13 @@ class iCovid (iCovidBase):
             # strip redundant newline
             _regions = _regions.rstrip()
 
+            # prepare very important information (vii)
+            vii = vii_tmpl.format(data['vii']) if data.get('vii') else ''
+
             # form data per country
             regions += country_tmpl.format(data['Code'], checked,
-                                           data['Name'], data['ViewBoxSz'],
+                                           data['Name'], vii,
+                                           data['ViewBoxSz'],
                                            _regions)
             checked = ''
 
@@ -663,7 +1002,6 @@ class iCovid (iCovidBase):
 
         # prepare copy list
         web_files = ['./report/index.html',
-                     './report/map_ukr.svg',
                      './report/report.css',
                      './report/report.js',
                      './report/virus.png']

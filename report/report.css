@@ -58,7 +58,6 @@ svg {
 }
 
 .land {
-    /*fill: rgb(204, 204, 204);*/
     fill-opacity: 1;
     stroke:black;
     stroke-opacity: 1;
@@ -101,8 +100,8 @@ h3 {
 }
 
 p {
-    font-family: 'Prata', serif;
-    font-size: 15px;
+    font-family: 'Play', sans-serif;
+    font-size: 14px;
     font-style: normal;
     font-variant: normal;
     font-weight: 200;
@@ -220,6 +219,21 @@ th, td {
 [type=radio]:checked ~ label ~ .tab_content {
 	z-index: 1;
 	opacity: 1;
+}
+
+.vi_info {
+    position: absolute;
+    display: inline-block;
+    z-index: 10;
+    top: -10px;
+    right: -8px;
+    width: 15px;
+    height: 15px;
+    line-height: 14px;
+    border-radius: 10px;
+    text-align: center;
+    font-family: 'Play', sans-serif;
+    font-size: 16px;
 }
 
 #notification {

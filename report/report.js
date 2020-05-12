@@ -59,11 +59,22 @@ $('.enabled').hover(
 
 $('.delta').hover(
     function() {
+        /* Delta direction for positive and negative parameters: 1 - positive, 0 - negative */
+        delta_dir = parseInt($(this).attr('d_dir'));
+
         delta = parseInt($(this).attr('delta'));
         if (delta > 0) {
-            $(this).css("background-color", "lightcoral");
+            if (delta_dir == 0) {
+                $(this).css("background-color", "lightcoral");
+            } else {
+                $(this).css("background-color", "lightgreen");
+            }
         } else {
-            $(this).css("background-color", "lightgreen");
+            if (delta_dir == 1) {
+                $(this).css("background-color", "lightcoral");
+            } else {
+                $(this).css("background-color", "lightgreen");
+            }
         }
 
         sign = delta > 0 ? '🔼 ' : '🔽 ';

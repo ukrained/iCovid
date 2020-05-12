@@ -354,7 +354,7 @@ class iCovid (iCovidBase):
                   'Population': 9136000, 'Area': 20770,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
                   'Regions': {},
-                  'vii': '☣️ Дані з багатьох регіонів Ізраїлю тимчасово недоступні.'}
+                  'vii': '☣️ Дані з регіонів Ізраїлю відсутні у відкритому доступі. Статистика по регіонах відображає ситуацію станом на 30 квітня 2020 року.'}
 
         config = self.__upd_isr_total(config)
         config = self.__upd_isr_regions(config)
@@ -395,14 +395,29 @@ class iCovid (iCovidBase):
                         "Хамерказ": "Центральний округ (Хамерказ)",
                         "Хефа": "Хайфський округ (Хейфа)"}
 
-        # get regions. skip first two general nodes
-        regions = self._html_get_node(page, './/tbody[@class="ppcUXd"]//tr')[2:]
-        for region in regions:
-            reg = region.xpath('.//th//div//span')[0].text
-            reg_name = name_mapping.get(reg, reg)
+        # MANUAL. DAILY.
+        # This data is unavailable in public web-sites.
+        # source: daly Telegram images of Israel`s MOH
+        config['Regions'] = {
+                                'Єрусалимський округ': 2418,
+                                'Центральний округ (Хамерказ)': 1524,
+                                'Тель-Авівський округ': 483,
+                                'Північний округ (Хацафон)': 400,
+                                'Південний округ (Хадаром)': 310,
+                                'Хайфський округ (Хейфа)': 142,
+                                'Голанські Висоти': 0,
+                                'Палестина': 0
+                            }
 
-            sick = region.xpath('.//td')[0].text.strip().replace('\xa0', '')
-            config['Regions'][reg_name] = int(sick) if sick != '—' else 0
+        # Commented until Israel data will be public
+        # get regions. skip first two general nodes
+        # regions = self._html_get_node(page, './/tbody[@class="ppcUXd"]//tr')[2:]
+        # for region in regions:
+        #     reg = region.xpath('.//th//div//span')[0].text
+        #     reg_name = name_mapping.get(reg, reg)
+        #
+        #     sick = region.xpath('.//td')[0].text.strip().replace('\xa0', '')
+        #     config['Regions'][reg_name] = int(sick) if sick != '—' else 0
 
         # update Palestine separately
         page = self._web_request('https://news.google.com/covid19/map?hl=uk&gl=UA&ceid=UA%3Auk&mid=%2Fm%2F01k0p4')
@@ -417,7 +432,8 @@ class iCovid (iCovidBase):
         config = {'Name': 'Польща', 'Code': 'pol', 'ViewBoxSz': '0 0 650 600',
                   'Population': 38433600, 'Area': 312679,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Regions': {}}
+                  'Regions': {},
+                  'vii': '☣️ Кількість перевірених людей у Польщі щоденно оновлюється вручну. Інформація отримується із сторінки Twitter МОЗ Польщі.<br><a href=\\\'https://twitter.com/MZ_GOV_PL\\\'>Джерело</a>'}
 
         config = self.__upd_pol_total(config)
         config = self.__upd_pol_regions(config)
@@ -429,10 +445,10 @@ class iCovid (iCovidBase):
         self.logger.normal(' - Збір загальних даних з news.google.com ..')
         page = self._web_request('https://news.google.com/covid19/map?hl=uk&gl=UA&ceid=UA%3Auk&mid=%2Fm%2F05qhw')
 
-        # manually updated value due to inability to scrap
-        # this data from the network
+        # MANUAL. DAILY.
+        # manually updated value due to inability to scrap this data from the network
         # source: https://twitter.com/MZ_GOV_PL
-        config['Tested'] = 443506
+        config['Tested'] = 491216
 
         total_info = self._html_get_node(page, './/tbody[@class="ppcUXd"]//tr')[1]
         sick = total_info.xpath('.//td')[0].text.strip().replace('\xa0', '')

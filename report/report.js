@@ -138,6 +138,13 @@ function country_changed(name) {
     $('#rd_recv').html($('#total').attr('recovered'));
     $('#rd_dead').html($('#total').attr('dead'));
 
+    /* Update text attribute */
+    $('#rd_test').attr('text', $('#total').attr('tested'));
+    $('#rd_sick').attr('text', $('#total').attr('sick'));
+    $('#rd_recv').attr('text', $('#total').attr('recovered'));
+    $('#rd_dead').attr('text', $('#total').attr('dead'));
+
+    /* Update delta attribute */
     $('#rd_test').attr('delta', $('#total').attr('d_tested'));
     $('#rd_sick').attr('delta', $('#total').attr('d_sick'));
     $('#rd_recv').attr('delta', $('#total').attr('d_recovered'));

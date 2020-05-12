@@ -448,7 +448,7 @@ class iCovid (iCovidBase):
         # MANUAL. DAILY.
         # manually updated value due to inability to scrap this data from the network
         # source: https://twitter.com/MZ_GOV_PL
-        config['Tested'] = 491216
+        config['Tested'] = 507778
 
         total_info = self._html_get_node(page, './/tbody[@class="ppcUXd"]//tr')[1]
         sick = total_info.xpath('.//td')[0].text.strip().replace('\xa0', '')

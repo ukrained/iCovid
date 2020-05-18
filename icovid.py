@@ -2,8 +2,8 @@
 
 # metadata
 __title__ = 'iCovid Monitoring Utility'
-__version__ = '0.9.4[rc]'
-__release__ = '11 May 2020'
+__version__ = '0.9.8[rc]'
+__release__ = '18 May 2020'
 __author__ = 'Alex Viytiv'
 
 # modules
@@ -282,15 +282,19 @@ class iCovid (iCovidBase):
         ''' Update latest data '''
         # update callbacks
         upd_cbs = [self._upd_ukr, self._upd_isr, self._upd_pol, self._upd_rus,
-                   self._upd_hug]
+                   self._upd_hug, self._upd_rom]
 
         curr_date = datetime.now().strftime("%d %b %Y")
 
         self.logger.normal('Оновлюємо дані ..')
         for upd_cb in upd_cbs:
-            data = upd_cb()
-            self.db.update({'date': curr_date, 'country': data['Name']}, data)
-            self.logger.success('Дані з {} оновлені'.format(data['Name']))
+            try:
+                data = upd_cb()
+                self.db.update({'date': curr_date, 'country': data['Name']}, data)
+                self.logger.success('Дані з {} оновлені'.format(data['Name']))
+            except Exception as e:
+                self.logger.error('Помилка при оновленні даних: {}'.format(upd_cb))
+                continue
 
     def _upd_ukr(self):
         config = {'Name': 'Україна', 'Code': 'ukr', 'ViewBoxSz': '0 0 640 410',
@@ -354,7 +358,7 @@ class iCovid (iCovidBase):
                   'Population': 9136000, 'Area': 20770,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
                   'Regions': {},
-                  'vii': '☣️ Дані з багатьох регіонів Ізраїлю тимчасово недоступні.'}
+                  'vii': '☣️ Дані з регіонів Ізраїлю відсутні у відкритому доступі. Статистика по регіонах відображає ситуацію станом на 30 квітня 2020 року.'}
 
         config = self.__upd_isr_total(config)
         config = self.__upd_isr_regions(config)
@@ -395,14 +399,29 @@ class iCovid (iCovidBase):
                         "Хамерказ": "Центральний округ (Хамерказ)",
                         "Хефа": "Хайфський округ (Хейфа)"}
 
-        # get regions. skip first two general nodes
-        regions = self._html_get_node(page, './/tbody[@class="ppcUXd"]//tr')[2:]
-        for region in regions:
-            reg = region.xpath('.//th//div//span')[0].text
-            reg_name = name_mapping.get(reg, reg)
+        # MANUAL. DAILY.
+        # This data is unavailable in public web-sites.
+        # source: daly Telegram images of Israel`s MOH
+        config['Regions'] = {
+                                'Єрусалимський округ': 2418,
+                                'Центральний округ (Хамерказ)': 1524,
+                                'Тель-Авівський округ': 483,
+                                'Північний округ (Хацафон)': 400,
+                                'Південний округ (Хадаром)': 310,
+                                'Хайфський округ (Хейфа)': 142,
+                                'Голанські Висоти': 0,
+                                'Палестина': 0
+                            }
 
-            sick = region.xpath('.//td')[0].text.strip().replace('\xa0', '')
-            config['Regions'][reg_name] = int(sick) if sick != '—' else 0
+        # Commented until Israel data will be public
+        # get regions. skip first two general nodes
+        # regions = self._html_get_node(page, './/tbody[@class="ppcUXd"]//tr')[2:]
+        # for region in regions:
+        #     reg = region.xpath('.//th//div//span')[0].text
+        #     reg_name = name_mapping.get(reg, reg)
+        #
+        #     sick = region.xpath('.//td')[0].text.strip().replace('\xa0', '')
+        #     config['Regions'][reg_name] = int(sick) if sick != '—' else 0
 
         # update Palestine separately
         page = self._web_request('https://news.google.com/covid19/map?hl=uk&gl=UA&ceid=UA%3Auk&mid=%2Fm%2F01k0p4')
@@ -417,7 +436,8 @@ class iCovid (iCovidBase):
         config = {'Name': 'Польща', 'Code': 'pol', 'ViewBoxSz': '0 0 650 600',
                   'Population': 38433600, 'Area': 312679,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Regions': {}}
+                  'Regions': {},
+                  'vii': '☣️ Кількість перевірених людей у Польщі щоденно оновлюється вручну. Інформація отримується із сторінки Twitter МОЗ Польщі.<br><a href=\\\'https://twitter.com/MZ_GOV_PL\\\'>Джерело</a>'}
 
         config = self.__upd_pol_total(config)
         config = self.__upd_pol_regions(config)
@@ -429,10 +449,10 @@ class iCovid (iCovidBase):
         self.logger.normal(' - Збір загальних даних з news.google.com ..')
         page = self._web_request('https://news.google.com/covid19/map?hl=uk&gl=UA&ceid=UA%3Auk&mid=%2Fm%2F05qhw')
 
-        # manually updated value due to inability to scrap
-        # this data from the network
+        # MANUAL. DAILY.
+        # manually updated value due to inability to scrap this data from the network
         # source: https://twitter.com/MZ_GOV_PL
-        config['Tested'] = 443506
+        config['Tested'] = 636046
 
         total_info = self._html_get_node(page, './/tbody[@class="ppcUXd"]//tr')[1]
         sick = total_info.xpath('.//td')[0].text.strip().replace('\xa0', '')
@@ -479,7 +499,7 @@ class iCovid (iCovidBase):
         # get regions. skip first two general nodes
         regions = self._html_get_node(page, './/tbody[@class="ppcUXd"]//tr')[2:]
         for region in regions:
-            reg = region.xpath('.//th//div//span')[0].text
+            reg = region.xpath('.//th//div//div')[0].text
             reg_name = name_mapping.get(reg, reg)
 
             sick = region.xpath('.//td')[0].text.strip().replace('\xa0', '')
@@ -752,13 +772,134 @@ class iCovid (iCovidBase):
         # get regions. skip first two general nodes
         regions = self._html_get_node(page, './/tbody[@class="ppcUXd"]//tr')[2:]
         for region in regions:
-            reg = region.xpath('.//th//div//span')[0].text
+            reg = region.xpath('.//th//div//div')[0].text
             reg_name = name_mapping.get(reg, reg)
 
             sick = region.xpath('.//td')[0].text.strip().replace('\xa0', '')
             config['Regions'][reg_name] = int(sick) if sick != '—' else 0
 
         return config
+
+    def _upd_rom(self):
+        config = {'Name': 'Румунія', 'Code': 'rom', 'ViewBoxSz': '200 350 260 450',
+                  'Population': 20121641, 'Area': 238397,
+                  'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
+                  'Regions': {},
+                  'vii': '☣️ Кількість перевірених людей у Румунії щоденно оновлюється вручну. Інформація отримується із щоденних прес-релізів МЗС Румунії.<br><a href=\\\'http://www.mae.ro/node/51759\\\'>Джерело</a>'}
+
+        config = self.__upd_rom_total(config)
+        config = self.__upd_rom_regions(config)
+
+        return config
+
+    def __upd_rom_total(self, config):
+        # news.google.com
+        self.logger.normal(' - Збір загальних даних з news.google.com ..')
+        page = self._web_request('https://news.google.com/covid19/map?hl=uk&gl=UA&ceid=UA%3Auk&mid=%2Fm%2F06c1y')
+
+        # MANUAL. DAILY.
+        # http://www.mae.ro/node/51759
+        config['Tested'] = 313621
+
+        total_info = self._html_get_node(page, './/tbody[@class="ppcUXd"]//tr')[1]
+        sick = total_info.xpath('.//td')[0].text.strip().replace('\xa0', '')
+        config['Sick'] = int(sick) if sick != '—' else 0
+
+        recv = total_info.xpath('.//td')[2].text.strip().replace('\xa0', '')
+        config['Recovered'] = int(recv) if sick != '—' else 0
+
+        dead = total_info.xpath('.//td')[3].text.strip().replace('\xa0', '')
+        config['Dead'] = int(dead) if sick != '—' else 0
+
+        return config
+
+    def __upd_rom_regions(self, config):
+        # news.google.com
+        self.logger.normal(' - Збір даних про регіони з news.google.com ..')
+        page = self._web_request('https://news.google.com/covid19/map?hl=uk&gl=UA&ceid=UA%3Auk&mid=%2Fm%2F06c1y')
+
+        # actual info is here
+        # http://www.mae.ro/node/51759
+        # https://datelazi.ro/
+
+        tpage = self._web_request('https://datelazi.ro/')
+        with open('rom.html', 'w+') as f:
+            f.write(page)
+
+        # initial regions data
+        initial = ['Повіт Алба', 'Повіт Арад', 'Повіт Арджеш', 'Повіт Бакеу',
+                   'Повіт Бистриця-Несеуд', 'Повіт Біхор', 'Повіт Ботошань',
+                   'Повіт Брашов', 'Повіт Бреїла', 'Повіт Бузеу', 'Повіт Васлуй',
+                   'Повіт Вилча', 'Повіт Вранча', 'Повіт Галац', 'Повіт Горж',
+                   'Повіт Джурджу', 'Повіт Димбовіца', 'Повіт Долж', 'Повіт Ілфов',
+                   'Повіт Караш-Северін', 'Повіт Келераші', 'Повіт Клуж',
+                   'Повіт Ковасна', 'Повіт Констанца', 'м. Бухарест',
+                   'Повіт Марамуреш', 'Повіт Мехедінць', 'Повіт Муреш',
+                   'Повіт Нямц', 'Повіт Олт', 'Повіт Прахова', 'Повіт Сату-Маре',
+                   'Повіт Селаж', 'Повіт Сібіу', 'Повіт Сучавський',
+                   'Повіт Телеорман', 'Повіт Тіміш', 'Повіт Тульча',
+                   'Повіт Харгіта', 'Повіт Хунедоара', 'Повіт Яломіца',
+                   'Повіт Ясси']
+        config['Regions'] = {k: 0 for k in initial}
+
+        # used to store data under better regions naming
+        name_mapping = {'Алба': 'Повіт Алба',
+                        'Арад': 'Повіт Арад',
+                        'Арджеш': 'Повіт Арджеш',
+                        'Бакеу': 'Повіт Бакеу',
+                        'Бистриця-Несеуд': 'Повіт Бистриця-Несеуд',
+                        'Біхор': 'Повіт Біхор',
+                        'Ботошань': 'Повіт Ботошань',
+                        'Брашов': 'Повіт Брашов',
+                        'Бреїла': 'Повіт Бреїла',
+                        'Бузеу': 'Повіт Бузеу',
+                        'Васлуй': 'Повіт Васлуй',
+                        'Вилчя': 'Повіт Вилча',
+                        'Вранчя': 'Повіт Вранча',
+                        'Галац': 'Повіт Галац',
+                        'Горж': 'Повіт Горж',
+                        'Джурджу': 'Повіт Джурджу',
+                        'Димбовіца': 'Повіт Димбовіца',
+                        'Долж': 'Повіт Долж',
+                        'Ілфов': 'Повіт Ілфов',
+                        'Караш-Северін': 'Повіт Караш-Северін',
+                        'Келераші': 'Повіт Келераші',
+                        'Клуж': 'Повіт Клуж',
+                        'Ковасна': 'Повіт Ковасна',
+                        'Констанца': 'Повіт Констанца',
+                        'Bucharest': 'м. Бухарест',
+                        'Марамуреш': 'Повіт Марамуреш',
+                        'Мехедінць': 'Повіт Мехедінць',
+                        'Муреш': 'Повіт Муреш',
+                        'Нямц': 'Повіт Нямц',
+                        'Олт': 'Повіт Олт',
+                        'Прахова': 'Повіт Прахова',
+                        'Сату-Маре': 'Повіт Сату-Маре',
+                        'Селаж': 'Повіт Селаж',
+                        'Сібіу': 'Повіт Сібіу',
+                        'Сучава': 'Повіт Сучавський',
+                        'Телеорман': 'Повіт Телеорман',
+                        'Тіміш': 'Повіт Тіміш',
+                        'Тульча': 'Повіт Тульча',
+                        'Харгіта': 'Повіт Харгіта',
+                        'Хунедоара': 'Повіт Хунедоара',
+                        'Яломіца': 'Повіт Яломіца',
+                        'Ясси': 'Повіт Ясси'}
+
+        # get regions. skip first two general nodes
+        regions = self._html_get_node(page, './/tbody[@class="ppcUXd"]//tr')[2:]
+
+        self.logger.debug('Знайдено {} регіонів'.format(len(regions)))
+        for region in regions:
+            reg = region.xpath('.//th//div//div')[0].text
+            reg_name = name_mapping.get(reg, reg)
+            self.logger.debug('Регіон: "{}"'.format(reg_name))
+
+            sick = region.xpath('.//td')[0].text.strip().replace('\xa0', '')
+            config['Regions'][reg_name] = int(sick) if sick != '—' else 0
+
+        return config
+
 
     def __str__(self):
         ''' Show COVID information '''
@@ -994,8 +1135,12 @@ class iCovid (iCovidBase):
             return
 
         # setup FTP connection
-        self.ftp.connect(server, 21)
-        self.ftp.login(uname, upass)
+        try:
+            self.ftp.connect(server, 21)
+            self.ftp.login(uname, upass)
+        except Exception as e:
+            self.logger.error('Не вдається приєднатись до FTP-сервера')
+            return
 
         # configure copy destination
         self.ftp.cwd('/covidinfo.zzz.com.ua')

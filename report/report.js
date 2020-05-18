@@ -59,11 +59,22 @@ $('.enabled').hover(
 
 $('.delta').hover(
     function() {
+        /* Delta direction for positive and negative parameters: 1 - positive, 0 - negative */
+        delta_dir = parseInt($(this).attr('d_dir'));
+
         delta = parseInt($(this).attr('delta'));
         if (delta > 0) {
-            $(this).css("background-color", "lightcoral");
+            if (delta_dir == 0) {
+                $(this).css("background-color", "lightcoral");
+            } else {
+                $(this).css("background-color", "lightgreen");
+            }
         } else {
-            $(this).css("background-color", "lightgreen");
+            if (delta_dir == 1) {
+                $(this).css("background-color", "lightcoral");
+            } else {
+                $(this).css("background-color", "lightgreen");
+            }
         }
 
         sign = delta > 0 ? '🔼 ' : '🔽 ';
@@ -127,6 +138,13 @@ function country_changed(name) {
     $('#rd_recv').html($('#total').attr('recovered'));
     $('#rd_dead').html($('#total').attr('dead'));
 
+    /* Update text attribute */
+    $('#rd_test').attr('text', $('#total').attr('tested'));
+    $('#rd_sick').attr('text', $('#total').attr('sick'));
+    $('#rd_recv').attr('text', $('#total').attr('recovered'));
+    $('#rd_dead').attr('text', $('#total').attr('dead'));
+
+    /* Update delta attribute */
     $('#rd_test').attr('delta', $('#total').attr('d_tested'));
     $('#rd_sick').attr('delta', $('#total').attr('d_sick'));
     $('#rd_recv').attr('delta', $('#total').attr('d_recovered'));
@@ -145,11 +163,26 @@ function copy2clipboard(text) {
 }
 
 function copy_info() {
-    data = ' У регіоні "' + $('#rd_name').text() + '" ' +
-           'перевірили '  + $('#rd_test').text() + ' осіб, ' +
-           'захворіли '   + $('#rd_sick').text() + ' осіб, ' +
-           'одужали '     + $('#rd_recv').text() + ' осіб та ' +
-           'померли '     + $('#rd_dead').text() + ' осіб. ';
+    data = ' У регіоні "' + $('#rd_name').text() + '" ';
+    info = []
+
+    if ($('#rd_test').text() != '—') {
+        info.push('перевірили '  + $('#rd_test').text() + ' осіб');
+    }
+
+    if ($('#rd_sick').text() != '—') {
+        info.push('захворіли '   + $('#rd_sick').text() + ' осіб');
+    }
+
+    if ($('#rd_recv').text() != '—') {
+        info.push('одужали '     + $('#rd_recv').text() + ' осіб');
+    }
+
+    if ($('#rd_dead').text() != '—') {
+        info.push('померли '     + $('#rd_dead').text() + ' осіб');
+    }
+
+    data += info.join() + '.';
 
     copy2clipboard(data);
     msg = 'Дані про регіон \"' + $('#rd_name').text() + '\" скопійовано в буфер.';

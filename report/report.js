@@ -163,11 +163,26 @@ function copy2clipboard(text) {
 }
 
 function copy_info() {
-    data = ' У регіоні "' + $('#rd_name').text() + '" ' +
-           'перевірили '  + $('#rd_test').text() + ' осіб, ' +
-           'захворіли '   + $('#rd_sick').text() + ' осіб, ' +
-           'одужали '     + $('#rd_recv').text() + ' осіб та ' +
-           'померли '     + $('#rd_dead').text() + ' осіб. ';
+    data = ' У регіоні "' + $('#rd_name').text() + '" ';
+    info = []
+
+    if ($('#rd_test').text() != '—') {
+        info.push('перевірили '  + $('#rd_test').text() + ' осіб');
+    }
+
+    if ($('#rd_sick').text() != '—') {
+        info.push('захворіли '   + $('#rd_sick').text() + ' осіб');
+    }
+
+    if ($('#rd_recv').text() != '—') {
+        info.push('одужали '     + $('#rd_recv').text() + ' осіб');
+    }
+
+    if ($('#rd_dead').text() != '—') {
+        info.push('померли '     + $('#rd_dead').text() + ' осіб');
+    }
+
+    data += info.join() + '.';
 
     copy2clipboard(data);
     msg = 'Дані про регіон \"' + $('#rd_name').text() + '\" скопійовано в буфер.';

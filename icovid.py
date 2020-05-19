@@ -236,13 +236,13 @@ class iCovidBase:
 
             self.logger.success('Словник "%s-%s" підвантажено' % (slang, dlang))
 
-    def _web_request(self, url):
+    def _web_request(self, url, headers={}):
         ''' Function perform HTML page request
 
         :param url: URL to webpage
         :return: 'utf-8'-encoded HTML page
         '''
-        html = requests.get(url).text
+        html = requests.get(url, headers=headers).text
 
         return html  # .decode('utf-8')
 
@@ -522,7 +522,7 @@ class iCovid (iCovidBase):
         # news.google.com
         self.logger.normal(' - Збір загальних даних з covid19.rosminzdrav.ru ..')
         page = self._web_request('https://covid19.rosminzdrav.ru/wp-json/api/mapdata/')
-        data = json.loads(page).get('Items')
+        data = json.loads(page)['Items']
 
         config['Tested'] = data[-1]['Observations']
         config['Sick'] = sum([it['Confirmed'] for it in data])
@@ -535,7 +535,7 @@ class iCovid (iCovidBase):
         # news.google.com
         self.logger.normal(' - Збір даних про регіони з covid19.rosminzdrav.ru ..')
         page = self._web_request('https://covid19.rosminzdrav.ru/wp-json/api/mapdata/')
-        data = json.loads(page).get('Items')
+        data = json.loads(page)['Items']
 
         # initial regions data
         initial = ['м. Москва', 'Московська область',
@@ -788,37 +788,36 @@ class iCovid (iCovidBase):
 
     def __upd_rom_total(self, config):
         # news.google.com
-        self.logger.normal(' - Збір загальних даних з news.google.com ..')
-        page = self._web_request('https://news.google.com/covid19/map?hl=uk&gl=UA&ceid=UA%3Auk&mid=%2Fm%2F06c1y')
+        self.logger.normal(' - Збір загальних даних з mae.ro ..')
 
-        # MANUAL. DAILY.
-        # http://www.mae.ro/node/51759
-        config['Tested'] = 322074
+        # headers required to get access to the mae.ro web-page
+        hdrs = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'}
 
-        total_info = self._html_get_node(page, './/tbody[@class="ppcUXd"]//tr')[1]
-        sick = total_info.xpath('.//td')[0].text.strip().replace('\xa0', '')
-        config['Sick'] = int(sick) if sick != '—' else 0
+        # get intial page to find out final link with tested persond data
+        page = self._web_request('http://www.mae.ro/node/51759', headers=hdrs)
+        node_link = self._html_get_node(page, './/div[@class="art"]//p//a')[3]
+        target_link = 'http://www.mae.ro{}'.format(node_link.attrib['href'])
 
-        recv = total_info.xpath('.//td')[2].text.strip().replace('\xa0', '')
-        config['Recovered'] = int(recv) if sick != '—' else 0
+        # get the page with tested persons quanity
+        page = self._web_request(target_link, headers=hdrs)
+        data = self._html_get_node(page, './/div[@class="art"]/p')[8].text
+        config['Tested'] = int(data.split()[10].replace('.', ''))
 
-        dead = total_info.xpath('.//td')[3].text.strip().replace('\xa0', '')
-        config['Dead'] = int(dead) if sick != '—' else 0
+        # get other data
+        page = self._web_request('https://datelazi.ro/latestData.json')
+        data = json.loads(page)['currentDayStats']
+
+        config['Sick'] = data['numberInfected']
+        config['Recovered'] = data['numberCured']
+        config['Dead'] = data['numberDeceased']
 
         return config
 
     def __upd_rom_regions(self, config):
         # news.google.com
-        self.logger.normal(' - Збір даних про регіони з news.google.com ..')
-        page = self._web_request('https://news.google.com/covid19/map?hl=uk&gl=UA&ceid=UA%3Auk&mid=%2Fm%2F06c1y')
-
-        # actual info is here
-        # http://www.mae.ro/node/51759
-        # https://datelazi.ro/
-
-        tpage = self._web_request('https://datelazi.ro/')
-        with open('rom.html', 'w+') as f:
-            f.write(page)
+        self.logger.normal(' - Збір даних про регіони з datelazi.ro ..')
+        page = self._web_request('https://datelazi.ro/latestData.json')
+        data = json.loads(page)['currentDayStats']['countyInfectionsNumbers']
 
         # initial regions data
         initial = ['Повіт Алба', 'Повіт Арад', 'Повіт Арджеш', 'Повіт Бакеу',
@@ -837,63 +836,73 @@ class iCovid (iCovidBase):
         config['Regions'] = {k: 0 for k in initial}
 
         # used to store data under better regions naming
-        name_mapping = {'Алба': 'Повіт Алба',
-                        'Арад': 'Повіт Арад',
-                        'Арджеш': 'Повіт Арджеш',
-                        'Бакеу': 'Повіт Бакеу',
-                        'Бистриця-Несеуд': 'Повіт Бистриця-Несеуд',
-                        'Біхор': 'Повіт Біхор',
-                        'Ботошань': 'Повіт Ботошань',
-                        'Брашов': 'Повіт Брашов',
-                        'Бреїла': 'Повіт Бреїла',
-                        'Бузеу': 'Повіт Бузеу',
-                        'Васлуй': 'Повіт Васлуй',
-                        'Вилчя': 'Повіт Вилча',
-                        'Вранчя': 'Повіт Вранча',
-                        'Галац': 'Повіт Галац',
-                        'Горж': 'Повіт Горж',
-                        'Джурджу': 'Повіт Джурджу',
-                        'Димбовіца': 'Повіт Димбовіца',
-                        'Долж': 'Повіт Долж',
-                        'Ілфов': 'Повіт Ілфов',
-                        'Караш-Северін': 'Повіт Караш-Северін',
-                        'Келераші': 'Повіт Келераші',
-                        'Клуж': 'Повіт Клуж',
-                        'Ковасна': 'Повіт Ковасна',
-                        'Констанца': 'Повіт Констанца',
-                        'Bucharest': 'м. Бухарест',
-                        'Марамуреш': 'Повіт Марамуреш',
-                        'Мехедінць': 'Повіт Мехедінць',
-                        'Муреш': 'Повіт Муреш',
-                        'Нямц': 'Повіт Нямц',
-                        'Олт': 'Повіт Олт',
-                        'Прахова': 'Повіт Прахова',
-                        'Сату-Маре': 'Повіт Сату-Маре',
-                        'Селаж': 'Повіт Селаж',
-                        'Сібіу': 'Повіт Сібіу',
-                        'Сучава': 'Повіт Сучавський',
-                        'Телеорман': 'Повіт Телеорман',
-                        'Тіміш': 'Повіт Тіміш',
-                        'Тульча': 'Повіт Тульча',
-                        'Харгіта': 'Повіт Харгіта',
-                        'Хунедоара': 'Повіт Хунедоара',
-                        'Яломіца': 'Повіт Яломіца',
-                        'Ясси': 'Повіт Ясси'}
+        name_mapping = {'AB': 'Повіт Алба',
+                        'AR': 'Повіт Арад',
+                        'AG': 'Повіт Арджеш',
+                        'BC': 'Повіт Бакеу',
+                        'BN': 'Повіт Бистриця-Несеуд',
+                        'BH': 'Повіт Біхор',
+                        'BT': 'Повіт Ботошань',
+                        'BV': 'Повіт Брашов',
+                        'BR': 'Повіт Бреїла',
+                        'BZ': 'Повіт Бузеу',
+                        'VS': 'Повіт Васлуй',
+                        'VL': 'Повіт Вилча',
+                        'VN': 'Повіт Вранча',
+                        'GL': 'Повіт Галац',
+                        'GJ': 'Повіт Горж',
+                        'GR': 'Повіт Джурджу',
+                        'DB': 'Повіт Димбовіца',
+                        'DJ': 'Повіт Долж',
+                        'IF': 'Повіт Ілфов',
+                        'CS': 'Повіт Караш-Северін',
+                        'CL': 'Повіт Келераші',
+                        'CJ': 'Повіт Клуж',
+                        'CV': 'Повіт Ковасна',
+                        'CT': 'Повіт Констанца',
+                        'MM': 'Повіт Марамуреш',
+                        'MH': 'Повіт Мехедінць',
+                        'MS': 'Повіт Муреш',
+                        'NT': 'Повіт Нямц',
+                        'OT': 'Повіт Олт',
+                        'PH': 'Повіт Прахова',
+                        'SM': 'Повіт Сату-Маре',
+                        'SJ': 'Повіт Селаж',
+                        'SB': 'Повіт Сібіу',
+                        'SV': 'Повіт Сучавський',
+                        'TR': 'Повіт Телеорман',
+                        'TM': 'Повіт Тіміш',
+                        'TL': 'Повіт Тульча',
+                        'HR': 'Повіт Харгіта',
+                        'HD': 'Повіт Хунедоара',
+                        'IL': 'Повіт Яломіца',
+                        'IS': 'Повіт Ясси',
+                        'B': 'м. Бухарест'}
 
-        # get regions. skip first two general nodes
-        regions = self._html_get_node(page, './/tbody[@class="ppcUXd"]//tr')[2:]
+        for region in data:
+            reg_name = name_mapping.get(region, region)
 
-        self.logger.debug('Знайдено {} регіонів'.format(len(regions)))
-        for region in regions:
-            reg = region.xpath('.//th//div//div')[0].text
-            reg_name = name_mapping.get(reg, reg)
-            self.logger.debug('Регіон: "{}"'.format(reg_name))
+            if region == '-':
+                # unproceeded persons will be equally divided between regions
+                unknown = data[region]
+                self.logger.debug('Невідомий регіон ще %d осіб' % unknown)
 
-            sick = region.xpath('.//td')[0].text.strip().replace('\xa0', '')
-            config['Regions'][reg_name] = int(sick) if sick != '—' else 0
+                # common shared number
+                common = int(data[region] / len(config['Regions']))
+
+                for r in config['Regions']:
+                    if unknown == 0:
+                        break
+
+                    config['Regions'][r] += common + (1 if unknown > 0 else 0)
+                    unknown -= 1
+
+            if region not in name_mapping:
+                continue
+
+            config['Regions'][reg_name] = data[region]
 
         return config
-
 
     def __str__(self):
         ''' Show COVID information '''

@@ -284,6 +284,8 @@ class iCovid (iCovidBase):
         upd_cbs = [self._upd_ukr, self._upd_isr, self._upd_pol, self._upd_rus,
                    self._upd_hug, self._upd_rom]
 
+        # slovakia - https://korona.gov.sk/en/coronavirus-covid-19-in-the-slovak-republic-in-numbers/
+
         curr_date = datetime.now().strftime("%d %b %Y")
 
         self.logger.normal('Оновлюємо дані ..')
@@ -299,7 +301,7 @@ class iCovid (iCovidBase):
 
     def _upd_ukr(self):
         config = {'Name': 'Україна', 'Code': 'ukr', 'ViewBoxSz': '0 0 640 410',
-                  'Population': 41880000, 'Area': 603628,
+                  'Population': 43762985, 'Area': 603628,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
                   'Regions': {}}
 
@@ -356,10 +358,14 @@ class iCovid (iCovidBase):
 
     def _upd_isr(self):
         config = {'Name': 'Ізраїль', 'Code': 'isr', 'ViewBoxSz': '0 0 250 800',
-                  'Population': 9136000, 'Area': 20770,
+                  'Population': 8638917, 'Area': 20770,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
                   'Regions': {},
                   'vii': '☣️ Дані з регіонів Ізраїлю відсутні у відкритому доступі. Статистика по регіонах відображає ситуацію станом на 30 квітня 2020 року.'}
+
+        # https://data.gov.il/dataset/covid-19/resource/d07c0771-01a8-43b2-96cc-c6154e7fa9bd
+        # https://data.gov.il/dataset/covid-19/resource/dcf999c1-d394-4b57-a5e0-9d014a62e046#collapse-endpoints
+        # https://coronaupdates.health.gov.il/
 
         config = self.__upd_isr_total(config)
         config = self.__upd_isr_regions(config)
@@ -435,7 +441,7 @@ class iCovid (iCovidBase):
 
     def _upd_pol(self):
         config = {'Name': 'Польща', 'Code': 'pol', 'ViewBoxSz': '0 0 650 600',
-                  'Population': 38433600, 'Area': 312679,
+                  'Population': 37851327, 'Area': 312679,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
                   'Regions': {}}
 
@@ -446,23 +452,23 @@ class iCovid (iCovidBase):
 
     def __upd_pol_total(self, config):
         # news.google.com
-        self.logger.normal(' - Збір загальних даних з news.google.com ..')
-        page = self._web_request('https://news.google.com/covid19/map?hl=uk&gl=UA&ceid=UA%3Auk&mid=%2Fm%2F05qhw')
+        self.logger.normal(' - Збір загальних даних з worldometers.info ..')
+        page = self._web_request('https://www.worldometers.info/coronavirus/')
 
-        # MANUAL. DAILY.
-        # manually updated value due to inability to scrap this data from the network
-        # source: https://twitter.com/MZ_GOV_PL
-        config['Tested'] = 653224
+        data = None
+        countries = self._html_get_node(page, './/table[@id="main_table_countries_today"]/tbody/tr')
+        for country in countries:
+            nodes = country.xpath('.//td//a')
 
-        total_info = self._html_get_node(page, './/tbody[@class="ppcUXd"]//tr')[1]
-        sick = total_info.xpath('.//td')[0].text.strip().replace('\xa0', '')
-        config['Sick'] = int(sick) if sick != '—' else 0
+            # check if there is name of country and it is Poland
+            if len(nodes) > 0 and nodes[0].text == 'Poland':
+                data = country
+                break
 
-        recv = total_info.xpath('.//td')[2].text.strip().replace('\xa0', '')
-        config['Recovered'] = int(recv) if sick != '—' else 0
-
-        dead = total_info.xpath('.//td')[3].text.strip().replace('\xa0', '')
-        config['Dead'] = int(dead) if sick != '—' else 0
+        config['Sick'] = int(country.xpath('.//td')[2].text.replace(',', ''))
+        config['Dead'] = int(country.xpath('.//td')[4].text.replace(',', ''))
+        config['Recovered'] = int(country.xpath('.//td')[6].text.replace(',', ''))
+        config['Tested'] = int(country.xpath('.//td')[11].text.replace(',', ''))
 
         return config
 
@@ -509,7 +515,7 @@ class iCovid (iCovidBase):
 
     def _upd_rus(self):
         config = {'Name': 'Московія', 'Code': 'rus', 'ViewBoxSz': '0 0 1250 800',
-                  'Population': 144526636, 'Area': 17098246,
+                  'Population': 145927292, 'Area': 17098246,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
                   'Regions': {}}
 
@@ -695,7 +701,7 @@ class iCovid (iCovidBase):
 
     def _upd_hug(self):
         config = {'Name': 'Угорщина', 'Code': 'hug', 'ViewBoxSz': '0 0 630 400',
-                  'Population': 9797561, 'Area': 93030,
+                  'Population': 9663123, 'Area': 93030,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
                   'Regions': {}}
 
@@ -777,7 +783,7 @@ class iCovid (iCovidBase):
 
     def _upd_rom(self):
         config = {'Name': 'Румунія', 'Code': 'rom', 'ViewBoxSz': '200 350 260 450',
-                  'Population': 20121641, 'Area': 238397,
+                  'Population': 19251921, 'Area': 238397,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
                   'Regions': {}}
 

@@ -2,8 +2,8 @@
 
 # metadata
 __title__ = 'iCovid Monitoring Utility'
-__version__ = '0.9.8[rc]'
-__release__ = '18 May 2020'
+__version__ = '1.0.0'
+__release__ = '20 May 2020'
 __author__ = 'Alex Viytiv'
 
 # modules
@@ -236,13 +236,13 @@ class iCovidBase:
 
             self.logger.success('Словник "%s-%s" підвантажено' % (slang, dlang))
 
-    def _web_request(self, url):
+    def _web_request(self, url, headers={}):
         ''' Function perform HTML page request
 
         :param url: URL to webpage
         :return: 'utf-8'-encoded HTML page
         '''
-        html = requests.get(url).text
+        html = requests.get(url, headers=headers).text
 
         return html  # .decode('utf-8')
 
@@ -284,6 +284,8 @@ class iCovid (iCovidBase):
         upd_cbs = [self._upd_ukr, self._upd_isr, self._upd_pol, self._upd_rus,
                    self._upd_hug, self._upd_rom]
 
+        # slovakia - https://korona.gov.sk/en/coronavirus-covid-19-in-the-slovak-republic-in-numbers/
+
         curr_date = datetime.now().strftime("%d %b %Y")
 
         self.logger.normal('Оновлюємо дані ..')
@@ -294,11 +296,12 @@ class iCovid (iCovidBase):
                 self.logger.success('Дані з {} оновлені'.format(data['Name']))
             except Exception as e:
                 self.logger.error('Помилка при оновленні даних: {}'.format(upd_cb))
+                raise e
                 continue
 
     def _upd_ukr(self):
         config = {'Name': 'Україна', 'Code': 'ukr', 'ViewBoxSz': '0 0 640 410',
-                  'Population': 41880000, 'Area': 603628,
+                  'Population': 43762985, 'Area': 603628,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
                   'Regions': {}}
 
@@ -355,10 +358,14 @@ class iCovid (iCovidBase):
 
     def _upd_isr(self):
         config = {'Name': 'Ізраїль', 'Code': 'isr', 'ViewBoxSz': '0 0 250 800',
-                  'Population': 9136000, 'Area': 20770,
+                  'Population': 8638917, 'Area': 20770,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
                   'Regions': {},
                   'vii': '☣️ Дані з регіонів Ізраїлю відсутні у відкритому доступі. Статистика по регіонах відображає ситуацію станом на 30 квітня 2020 року.'}
+
+        # https://data.gov.il/dataset/covid-19/resource/d07c0771-01a8-43b2-96cc-c6154e7fa9bd
+        # https://data.gov.il/dataset/covid-19/resource/dcf999c1-d394-4b57-a5e0-9d014a62e046#collapse-endpoints
+        # https://coronaupdates.health.gov.il/
 
         config = self.__upd_isr_total(config)
         config = self.__upd_isr_regions(config)
@@ -434,10 +441,9 @@ class iCovid (iCovidBase):
 
     def _upd_pol(self):
         config = {'Name': 'Польща', 'Code': 'pol', 'ViewBoxSz': '0 0 650 600',
-                  'Population': 38433600, 'Area': 312679,
+                  'Population': 37851327, 'Area': 312679,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Regions': {},
-                  'vii': '☣️ Кількість перевірених людей у Польщі щоденно оновлюється вручну. Інформація отримується із сторінки Twitter МОЗ Польщі.<br><a href=\\\'https://twitter.com/MZ_GOV_PL\\\'>Джерело</a>'}
+                  'Regions': {}}
 
         config = self.__upd_pol_total(config)
         config = self.__upd_pol_regions(config)
@@ -446,23 +452,23 @@ class iCovid (iCovidBase):
 
     def __upd_pol_total(self, config):
         # news.google.com
-        self.logger.normal(' - Збір загальних даних з news.google.com ..')
-        page = self._web_request('https://news.google.com/covid19/map?hl=uk&gl=UA&ceid=UA%3Auk&mid=%2Fm%2F05qhw')
+        self.logger.normal(' - Збір загальних даних з worldometers.info ..')
+        page = self._web_request('https://www.worldometers.info/coronavirus/')
 
-        # MANUAL. DAILY.
-        # manually updated value due to inability to scrap this data from the network
-        # source: https://twitter.com/MZ_GOV_PL
-        config['Tested'] = 636046
+        data = None
+        countries = self._html_get_node(page, './/table[@id="main_table_countries_today"]/tbody/tr')
+        for country in countries:
+            nodes = country.xpath('.//td//a')
 
-        total_info = self._html_get_node(page, './/tbody[@class="ppcUXd"]//tr')[1]
-        sick = total_info.xpath('.//td')[0].text.strip().replace('\xa0', '')
-        config['Sick'] = int(sick) if sick != '—' else 0
+            # check if there is name of country and it is Poland
+            if len(nodes) > 0 and nodes[0].text == 'Poland':
+                data = country
+                break
 
-        recv = total_info.xpath('.//td')[2].text.strip().replace('\xa0', '')
-        config['Recovered'] = int(recv) if sick != '—' else 0
-
-        dead = total_info.xpath('.//td')[3].text.strip().replace('\xa0', '')
-        config['Dead'] = int(dead) if sick != '—' else 0
+        config['Sick'] = int(country.xpath('.//td')[2].text.replace(',', ''))
+        config['Dead'] = int(country.xpath('.//td')[4].text.replace(',', ''))
+        config['Recovered'] = int(country.xpath('.//td')[6].text.replace(',', ''))
+        config['Tested'] = int(country.xpath('.//td')[11].text.replace(',', ''))
 
         return config
 
@@ -509,7 +515,7 @@ class iCovid (iCovidBase):
 
     def _upd_rus(self):
         config = {'Name': 'Московія', 'Code': 'rus', 'ViewBoxSz': '0 0 1250 800',
-                  'Population': 144526636, 'Area': 17098246,
+                  'Population': 145927292, 'Area': 17098246,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
                   'Regions': {}}
 
@@ -520,26 +526,22 @@ class iCovid (iCovidBase):
 
     def __upd_rus_total(self, config):
         # news.google.com
-        self.logger.normal(' - Збір загальних даних з стопкоронавирус.рф ..')
-        page = self._web_request('https://стопкоронавирус.рф/information')
+        self.logger.normal(' - Збір загальних даних з covid19.rosminzdrav.ru ..')
+        page = self._web_request('https://covid19.rosminzdrav.ru/wp-json/api/mapdata/')
+        data = json.loads(page)['Items']
 
-        total_info = self._html_get_node(page, './/cv-stats-virus', nid=0)
-        data = json.loads(total_info.attrib.get(':stats-data', '{}'))
-        data['tested'] = data['tested'].replace(',', '.')
+        config['Tested'] = data[-1]['Observations']
+        config['Sick'] = sum([it['Confirmed'] for it in data])
+        config['Recovered'] = sum([it['Recovered'] for it in data])
+        config['Dead'] = sum([it['Deaths'] for it in data])
 
-        numeric_const_pattern = '[-+]?(?:(?:\d*\.\d+)|(?:\d+\.?))(?:[Ee][+-]?\d+)?'
-        rx = re.compile(numeric_const_pattern, re.VERBOSE)
-
-        config['Tested'] = int(float(rx.findall(data['tested'])[0]) * 10**6)
-        config['Sick'] = int(data.get('sick', 0).replace(' ', ''))
-        config['Recovered'] = int(data.get('healed', 0).replace(' ', ''))
-        config['Dead'] = int(data.get('died', 0).replace(' ', ''))
         return config
 
     def __upd_rus_regions(self, config):
         # news.google.com
-        self.logger.normal(' - Збір даних про регіони з стопкоронавирус.рф ..')
-        page = self._web_request('https://стопкоронавирус.рф/information')
+        self.logger.normal(' - Збір даних про регіони з covid19.rosminzdrav.ru ..')
+        page = self._web_request('https://covid19.rosminzdrav.ru/wp-json/api/mapdata/')
+        data = json.loads(page)['Items']
 
         # initial regions data
         initial = ['м. Москва', 'Московська область',
@@ -591,7 +593,7 @@ class iCovid (iCovidBase):
                         'Московская область': 'Московська область',
                         'Санкт-Петербург': "м. Санкт-Петербург",
                         'Нижегородская область': "Нижньогородська область",
-                        'Республика Дагестан': "Республіка Дагестан",
+                        'Дагестан': "Республіка Дагестан",
                         'Мурманская область': "Мурманська область",
                         'Краснодарский край': "Краснодарський край",
                         'Тульская область': "Тульська область",
@@ -599,19 +601,19 @@ class iCovid (iCovidBase):
                         'Свердловская область': "Свердловська область",
                         'Калужская область': "Калузька область",
                         'Брянская область': "Брянська область",
-                        'Республика Татарстан': "Республіка Татарстан",
+                        'Татарстан': "Республіка Татарстан",
                         'Рязанская область': "Рязанська область",
-                        'Республика Северная Осетия — Алания': "Республіка Північна Осетія - Аланія",
+                        'Северная Осетия': "Республіка Північна Осетія - Аланія",
                         'Ленинградская область': "Ленінградська область",
-                        'Республика Башкортостан': "Республіка Башкортостан",
+                        'Башкортостан': "Республіка Башкортостан",
                         'Курская область': "Курська область",
                         'Тамбовская область': "Тамбовська область",
                         'Владимирская область': "Володимирська область",
-                        'Республика Ингушетия': "Республіка Інгушетія",
-                        'Кабардино-Балкарская Республика': "Кабардино-Балкарська республіка",
-                        'Республика Мордовия': "Республіка Мордовія",
+                        'Ингушетия': "Республіка Інгушетія",
+                        'Кабардино-Балкария': "Кабардино-Балкарська республіка",
+                        'Мордовия': "Республіка Мордовія",
                         'Ямало-Ненецкий автономный округ': "Ямало-Ненетський авт. округ",
-                        'Республика Чувашия': "Республіка Чувашія",
+                        'Чувашия': "Республіка Чувашія",
                         'Ярославская область': "Ярославська область",
                         'Красноярский край': "Красноярський край",
                         'Саратовская область': "Саратовська область",
@@ -620,7 +622,7 @@ class iCovid (iCovidBase):
                         'Орловская область': "Орловська область",
                         'Челябинская область': "Челябінська область",
                         'Оренбургская область': "Оренбурзька область",
-                        'Республика Марий Эл': "Республіка Марій Ел",
+                        'Марий Эл': "Республіка Марій Ел",
                         'Хабаровский край': "Хабаровський край",
                         'Самарская область': "Самарська область",
                         'Республика Коми': "Республіка Комі",
@@ -632,7 +634,7 @@ class iCovid (iCovidBase):
                         'Пермский край': "Пермський край",
                         'Кировская область': "Кіровська область",
                         'Тюменская область': "Тюменська область",
-                        'Чеченская Республика': "Чеченська Республіка",
+                        'Чечня': "Чеченська Республіка",
                         'Ульяновская область': "Ульянівська область",
                         'Пензенская область': "Пензенська область",
                         'Ивановская область': "Іванівська область",
@@ -641,66 +643,65 @@ class iCovid (iCovidBase):
                         'Астраханская область': "Астраханська область",
                         'Алтайский край': "Алтайський край",
                         'Белгородская область': "Білгородська область",
-                        'Ханты-Мансийский АО': "Ханти-Мансійський авт. округ",
-                        'Республика Бурятия': "Республіка Бурятія",
-                        'Карачаево-Черкесская Республика': "Карачаєво-Черкеська Республіка",
+                        'Ханты-Мансийский автономный округ — Югра': "Ханти-Мансійський авт. округ",
+                        'Бурятия': "Республіка Бурятія",
+                        'Карачаево-Черкесия': "Карачаєво-Черкеська Республіка",
                         'Новгородская область': "Новгородська область",
-                        'Республика Саха (Якутия)': "Республіка Саха (Якутія)",
-                        'Республика Калмыкия': "Республіка Калмикія",
+                        'Якутия': "Республіка Саха (Якутія)",
+                        'Калмыкия': "Республіка Калмикія",
                         'Архангельская область': "Архангельська область",
-                        'Республика Хакасия': "Республіка Хакасія",
+                        'Хакасия': "Республіка Хакасія",
                         'Камчатский край': "Камчатський край",
-                        'Удмуртская Республика': "Удмуртська Республіка",
+                        'Удмуртия': "Удмуртська Республіка",
                         'Костромская область': "Костромська область",
                         'Псковская область': "Псковська область",
                         'Забайкальский край': "Забайкальський край",
                         'Иркутская область': "Іркутська область",
                         'Вологодская область': "Вологодська область",
                         'Омская область': "Омська область",
-                        'Республика Адыгея': "Республіка Адигея",
+                        'Адыгея': "Республіка Адигея",
                         'Кемеровская область': "Кемеровська область",
                         'Томская область': "Томська область",
                         'Еврейская автономная область': "Єврейська автономна область",
                         'Магаданская область': "Магаданська область",
-                        'Республика Карелия': "Республіка Карелія",
+                        'Карелия': "Республіка Карелія",
                         'Амурская область': "Амурська область",
                         'Курганская область': "Курганська область",
-                        'Республика Тыва': "Республіка Тива (Тува)",
+                        'Тыва': "Республіка Тива (Тува)",
                         'Ненецкий автономный округ': "Ненецький авт. округ",
                         'Сахалинская область': "Сахалінська область",
                         'Чукотский автономный округ': "Чукотський авт. округ",
                         'Республика Алтай': "Республіка Алтай"}
 
         # occupied regions
-        occupied_regions = {'Республика Крым': ['Україна', 'Автономна Республіка Крим'],
+        occupied_regions = {'Крым': ['Україна', 'Автономна Республіка Крим'],
                             'Севастополь': ['Україна', 'м. Севастополь']}
 
-        reg_node = self._html_get_node(page, './/cv-spread-overview', nid=0)
-        regions = json.loads(reg_node.attrib.get(':spread-data', '[]'))
+        for reg_data in data:
+            reg = reg_data['LocationName']
 
-        # get regions. skip first two general nodes
-        for region in regions:
-            reg = region['title'].strip()
+            # check if region name is valid
+            if reg not in name_mapping and reg not in occupied_regions:
+                continue
+
             reg_name = name_mapping.get(reg, reg)
 
             if reg_name in occupied_regions:
                 # special processing for occupied regions
-                curr_date = date.today().strftime("%d %b %Y")
-                db = self.db.get({'date': curr_date,
-                                  'country': occupied_regions[reg_name][0]})
-                db['Regions'][occupied_regions[reg_name][1]] = int(region['sick'])
-                self.db.update({'date': curr_date,
-                                'country': occupied_regions[reg_name][0]}, db)
+                key = {'date': date.today().strftime("%d %b %Y"),
+                       'country': occupied_regions[reg_name][0]}
+                db = self.db.get(key)
+                db['Regions'][occupied_regions[reg_name][1]] = reg_data['Confirmed']
+                self.db.update(key, db)
                 continue
 
-            sick = int(region['sick'])
-            config['Regions'][reg_name] = sick
+            config['Regions'][reg_name] = reg_data['Confirmed']
 
         return config
 
     def _upd_hug(self):
         config = {'Name': 'Угорщина', 'Code': 'hug', 'ViewBoxSz': '0 0 630 400',
-                  'Population': 9797561, 'Area': 93030,
+                  'Population': 9663123, 'Area': 93030,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
                   'Regions': {}}
 
@@ -782,10 +783,9 @@ class iCovid (iCovidBase):
 
     def _upd_rom(self):
         config = {'Name': 'Румунія', 'Code': 'rom', 'ViewBoxSz': '200 350 260 450',
-                  'Population': 20121641, 'Area': 238397,
+                  'Population': 19251921, 'Area': 238397,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Regions': {},
-                  'vii': '☣️ Кількість перевірених людей у Румунії щоденно оновлюється вручну. Інформація отримується із щоденних прес-релізів МЗС Румунії.<br><a href=\\\'http://www.mae.ro/node/51759\\\'>Джерело</a>'}
+                  'Regions': {}}
 
         config = self.__upd_rom_total(config)
         config = self.__upd_rom_regions(config)
@@ -794,37 +794,36 @@ class iCovid (iCovidBase):
 
     def __upd_rom_total(self, config):
         # news.google.com
-        self.logger.normal(' - Збір загальних даних з news.google.com ..')
-        page = self._web_request('https://news.google.com/covid19/map?hl=uk&gl=UA&ceid=UA%3Auk&mid=%2Fm%2F06c1y')
+        self.logger.normal(' - Збір загальних даних з mae.ro ..')
 
-        # MANUAL. DAILY.
-        # http://www.mae.ro/node/51759
-        config['Tested'] = 313621
+        # headers required to get access to the mae.ro web-page
+        hdrs = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'}
 
-        total_info = self._html_get_node(page, './/tbody[@class="ppcUXd"]//tr')[1]
-        sick = total_info.xpath('.//td')[0].text.strip().replace('\xa0', '')
-        config['Sick'] = int(sick) if sick != '—' else 0
+        # get intial page to find out final link with tested persond data
+        page = self._web_request('http://www.mae.ro/node/51759', headers=hdrs)
+        node_link = self._html_get_node(page, './/div[@class="art"]//p//a')[3]
+        target_link = 'http://www.mae.ro{}'.format(node_link.attrib['href'])
 
-        recv = total_info.xpath('.//td')[2].text.strip().replace('\xa0', '')
-        config['Recovered'] = int(recv) if sick != '—' else 0
+        # get the page with tested persons quanity
+        page = self._web_request(target_link, headers=hdrs)
+        data = self._html_get_node(page, './/div[@class="art"]/p')[8].text
+        config['Tested'] = int(data.split()[10].replace('.', ''))
 
-        dead = total_info.xpath('.//td')[3].text.strip().replace('\xa0', '')
-        config['Dead'] = int(dead) if sick != '—' else 0
+        # get other data
+        page = self._web_request('https://datelazi.ro/latestData.json')
+        data = json.loads(page)['currentDayStats']
+
+        config['Sick'] = data['numberInfected']
+        config['Recovered'] = data['numberCured']
+        config['Dead'] = data['numberDeceased']
 
         return config
 
     def __upd_rom_regions(self, config):
         # news.google.com
-        self.logger.normal(' - Збір даних про регіони з news.google.com ..')
-        page = self._web_request('https://news.google.com/covid19/map?hl=uk&gl=UA&ceid=UA%3Auk&mid=%2Fm%2F06c1y')
-
-        # actual info is here
-        # http://www.mae.ro/node/51759
-        # https://datelazi.ro/
-
-        tpage = self._web_request('https://datelazi.ro/')
-        with open('rom.html', 'w+') as f:
-            f.write(page)
+        self.logger.normal(' - Збір даних про регіони з datelazi.ro ..')
+        page = self._web_request('https://datelazi.ro/latestData.json')
+        data = json.loads(page)['currentDayStats']['countyInfectionsNumbers']
 
         # initial regions data
         initial = ['Повіт Алба', 'Повіт Арад', 'Повіт Арджеш', 'Повіт Бакеу',
@@ -843,63 +842,73 @@ class iCovid (iCovidBase):
         config['Regions'] = {k: 0 for k in initial}
 
         # used to store data under better regions naming
-        name_mapping = {'Алба': 'Повіт Алба',
-                        'Арад': 'Повіт Арад',
-                        'Арджеш': 'Повіт Арджеш',
-                        'Бакеу': 'Повіт Бакеу',
-                        'Бистриця-Несеуд': 'Повіт Бистриця-Несеуд',
-                        'Біхор': 'Повіт Біхор',
-                        'Ботошань': 'Повіт Ботошань',
-                        'Брашов': 'Повіт Брашов',
-                        'Бреїла': 'Повіт Бреїла',
-                        'Бузеу': 'Повіт Бузеу',
-                        'Васлуй': 'Повіт Васлуй',
-                        'Вилчя': 'Повіт Вилча',
-                        'Вранчя': 'Повіт Вранча',
-                        'Галац': 'Повіт Галац',
-                        'Горж': 'Повіт Горж',
-                        'Джурджу': 'Повіт Джурджу',
-                        'Димбовіца': 'Повіт Димбовіца',
-                        'Долж': 'Повіт Долж',
-                        'Ілфов': 'Повіт Ілфов',
-                        'Караш-Северін': 'Повіт Караш-Северін',
-                        'Келераші': 'Повіт Келераші',
-                        'Клуж': 'Повіт Клуж',
-                        'Ковасна': 'Повіт Ковасна',
-                        'Констанца': 'Повіт Констанца',
-                        'Bucharest': 'м. Бухарест',
-                        'Марамуреш': 'Повіт Марамуреш',
-                        'Мехедінць': 'Повіт Мехедінць',
-                        'Муреш': 'Повіт Муреш',
-                        'Нямц': 'Повіт Нямц',
-                        'Олт': 'Повіт Олт',
-                        'Прахова': 'Повіт Прахова',
-                        'Сату-Маре': 'Повіт Сату-Маре',
-                        'Селаж': 'Повіт Селаж',
-                        'Сібіу': 'Повіт Сібіу',
-                        'Сучава': 'Повіт Сучавський',
-                        'Телеорман': 'Повіт Телеорман',
-                        'Тіміш': 'Повіт Тіміш',
-                        'Тульча': 'Повіт Тульча',
-                        'Харгіта': 'Повіт Харгіта',
-                        'Хунедоара': 'Повіт Хунедоара',
-                        'Яломіца': 'Повіт Яломіца',
-                        'Ясси': 'Повіт Ясси'}
+        name_mapping = {'AB': 'Повіт Алба',
+                        'AR': 'Повіт Арад',
+                        'AG': 'Повіт Арджеш',
+                        'BC': 'Повіт Бакеу',
+                        'BN': 'Повіт Бистриця-Несеуд',
+                        'BH': 'Повіт Біхор',
+                        'BT': 'Повіт Ботошань',
+                        'BV': 'Повіт Брашов',
+                        'BR': 'Повіт Бреїла',
+                        'BZ': 'Повіт Бузеу',
+                        'VS': 'Повіт Васлуй',
+                        'VL': 'Повіт Вилча',
+                        'VN': 'Повіт Вранча',
+                        'GL': 'Повіт Галац',
+                        'GJ': 'Повіт Горж',
+                        'GR': 'Повіт Джурджу',
+                        'DB': 'Повіт Димбовіца',
+                        'DJ': 'Повіт Долж',
+                        'IF': 'Повіт Ілфов',
+                        'CS': 'Повіт Караш-Северін',
+                        'CL': 'Повіт Келераші',
+                        'CJ': 'Повіт Клуж',
+                        'CV': 'Повіт Ковасна',
+                        'CT': 'Повіт Констанца',
+                        'MM': 'Повіт Марамуреш',
+                        'MH': 'Повіт Мехедінць',
+                        'MS': 'Повіт Муреш',
+                        'NT': 'Повіт Нямц',
+                        'OT': 'Повіт Олт',
+                        'PH': 'Повіт Прахова',
+                        'SM': 'Повіт Сату-Маре',
+                        'SJ': 'Повіт Селаж',
+                        'SB': 'Повіт Сібіу',
+                        'SV': 'Повіт Сучавський',
+                        'TR': 'Повіт Телеорман',
+                        'TM': 'Повіт Тіміш',
+                        'TL': 'Повіт Тульча',
+                        'HR': 'Повіт Харгіта',
+                        'HD': 'Повіт Хунедоара',
+                        'IL': 'Повіт Яломіца',
+                        'IS': 'Повіт Ясси',
+                        'B': 'м. Бухарест'}
 
-        # get regions. skip first two general nodes
-        regions = self._html_get_node(page, './/tbody[@class="ppcUXd"]//tr')[2:]
+        for region in data:
+            reg_name = name_mapping.get(region, region)
 
-        self.logger.debug('Знайдено {} регіонів'.format(len(regions)))
-        for region in regions:
-            reg = region.xpath('.//th//div//div')[0].text
-            reg_name = name_mapping.get(reg, reg)
-            self.logger.debug('Регіон: "{}"'.format(reg_name))
+            if region == '-':
+                # unproceeded persons will be equally divided between regions
+                unknown = data[region]
+                self.logger.debug('Невідомий регіон ще %d осіб' % unknown)
 
-            sick = region.xpath('.//td')[0].text.strip().replace('\xa0', '')
-            config['Regions'][reg_name] = int(sick) if sick != '—' else 0
+                # common shared number
+                common = int(data[region] / len(config['Regions']))
+
+                for r in config['Regions']:
+                    if unknown == 0:
+                        break
+
+                    config['Regions'][r] += common + (1 if unknown > 0 else 0)
+                    unknown -= 1
+
+            if region not in name_mapping:
+                continue
+
+            config['Regions'][reg_name] = data[region]
 
         return config
-
 
     def __str__(self):
         ''' Show COVID information '''

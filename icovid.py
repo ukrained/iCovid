@@ -2,7 +2,7 @@
 
 # metadata
 __title__ = 'iCovid Monitoring Utility'
-__version__ = '1.0.0'
+__version__ = '1.0.1'
 __release__ = '20 May 2020'
 __author__ = 'Alex Viytiv'
 
@@ -530,7 +530,7 @@ class iCovid (iCovidBase):
         page = self._web_request('https://covid19.rosminzdrav.ru/wp-json/api/mapdata/')
         data = json.loads(page)['Items']
 
-        config['Tested'] = data[-1]['Observations']
+        config['Tested'] = sum([it['Observations'] for it in data])
         config['Sick'] = sum([it['Confirmed'] for it in data])
         config['Recovered'] = sum([it['Recovered'] for it in data])
         config['Dead'] = sum([it['Deaths'] for it in data])
@@ -712,7 +712,7 @@ class iCovid (iCovidBase):
 
     def __upd_hug_total(self, config):
         # news.google.com
-        self.logger.normal(' - Збір загальних даних з news.google.com ..')
+        self.logger.normal(' - Збір загальних даних з koronavirus.gov.hu ..')
         page = self._web_request('https://news.google.com/covid19/map?hl=uk&gl=UA&ceid=UA%3Auk&mid=%2Fm%2F03gj2')
 
         total_info = self._html_get_node(page, './/tbody[@class="ppcUXd"]//tr')[1]

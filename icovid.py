@@ -2,8 +2,8 @@
 
 # metadata
 __title__ = 'iCovid Monitoring Utility'
-__version__ = '0.9.8[rc]'
-__release__ = '18 May 2020'
+__version__ = '1.0.0'
+__release__ = '20 May 2020'
 __author__ = 'Alex Viytiv'
 
 # modules

@@ -806,7 +806,7 @@ class iCovid (iCovidBase):
 
         # get the page with tested persons quanity
         page = self._web_request(target_link, headers=hdrs)
-        data = self._html_get_node(page, './/div[@class="art"]/p')[8].text
+        data = self._html_get_node(page, './/div[@class="art"]/p')[12].text
         config['Tested'] = int(data.split()[10].replace('.', ''))
 
         # get other data

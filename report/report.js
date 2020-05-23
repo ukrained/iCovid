@@ -182,7 +182,7 @@ function copy_info() {
         info.push('померли '     + $('#rd_dead').text() + ' осіб');
     }
 
-    data += info.join() + '.';
+    data += info.join(', ') + '.';
 
     copy2clipboard(data);
     msg = 'Дані про регіон \"' + $('#rd_name').text() + '\" скопійовано в буфер.';

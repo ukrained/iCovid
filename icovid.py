@@ -801,13 +801,20 @@ class iCovid (iCovidBase):
 
         # get intial page to find out final link with tested persond data
         page = self._web_request('http://www.mae.ro/node/51759', headers=hdrs)
-        node_link = self._html_get_node(page, './/div[@class="art"]//p//a')[3]
-        target_link = 'http://www.mae.ro{}'.format(node_link.attrib['href'])
+        links = self._html_get_node(page, './/div[@class="art"]//p//a')
 
-        # get the page with tested persons quanity
-        page = self._web_request(target_link, headers=hdrs)
-        data = self._html_get_node(page, './/div[@class="art"]/p')[12].text
-        config['Tested'] = int(data.split()[10].replace('.', ''))
+        # go through all available paragraphs and look for the link
+        target_link = ''
+        for link in links:
+            if link.attrib.get('title', '').startswith('Buletin informativ'):
+                target_link = 'http://www.mae.ro{}'.format(link.attrib['href'])
+                break
+
+        if target_link:
+            # get the page with tested persons quanity
+            page = self._web_request(target_link, headers=hdrs)
+            data = self._html_get_node(page, './/div[@class="art"]/p')[8].text
+            config['Tested'] = int(data.split()[10].replace('.', ''))
 
         # get other data
         page = self._web_request('https://datelazi.ro/latestData.json')
@@ -891,7 +898,7 @@ class iCovid (iCovidBase):
             if region == '-':
                 # unproceeded persons will be equally divided between regions
                 unknown = data[region]
-                self.logger.debug('Невідомий регіон ще %d осіб' % unknown)
+                self.logger.debug('Невідомий регіон у %d осіб' % unknown)
 
                 # common shared number
                 common = int(data[region] / len(config['Regions']))
@@ -1062,7 +1069,7 @@ class iCovid (iCovidBase):
             # stage 3 - regions data
             # max_sick = max(data['Regions'].values())
             # max_sick = sum(data['Regions'].values()) / len(data['Regions'].values())
-            max_sick = 2000
+            max_sick = 4000
             color_step = (max_sick / 256) or 1
 
             _regions = ''

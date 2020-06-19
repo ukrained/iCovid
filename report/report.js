@@ -245,14 +245,12 @@ function close_ntf() {
     $("#notification").css('display', 'none');
 }
 
-
 /* New code */
-// draggable plugin
 
+/* draggable plugin */
 (function($) {
     $.fn.drags = function(opt) {
-
-        opt = $.extend({handle:"",cursor:"move"}, opt);
+        opt = $.extend({ handle:"", cursor:"move" }, opt);
 
         if(opt.handle === "") {
             var $el = this;
@@ -293,7 +291,12 @@ function close_ntf() {
 
 $('#modal').drags();
 
-$('#modal-trigger').click(function(){
-  $(this).addClass('hide');
-  $('#modal').addClass('show');
-});
+function open_modal(name, content_id) {
+    $('#mdl_head').html(name + '<span id="close_mdl" onclick="close_modal()">❌</span>');
+    $('#mdl_content').html($('#' + content_id).html());
+    $('#modal').addClass('show');
+}
+
+function close_modal() {
+    $('#modal').removeClass('show');
+}

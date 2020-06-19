@@ -423,92 +423,99 @@ th, td {
 
 
 /* NEW STYLES */
-
-
-body #modal-trigger {
-    display: block;
-    position: relative;
-    top: 10px;
-    margin: 0 auto;
-    padding: 0 60px;
-    border-radius: 20px;
-    border: none;
-    background: inherit;
-    overflow: hidden;
+#modal {
+    font-family: 'Play', sans-serif;
     font-size: 16px;
-    font-family: helvetica neue, helvetica, arial, sans-serif;
-    font-weight: 200;
-    line-height: 50px;
-    box-shadow: 0 0 50px 5px rgba(0, 0, 0, 0.2);
-    opacity: 1;
-}
-
-body #modal-trigger.hide {
-    opacity: 0;
-}
-
-body #modal-trigger:before {
-    content: '';
-    display: block;
-    position: absolute;
-    z-index: 1;
-    top: -50px;
-    left: -50px;
-    height: calc(100% + 100px);
-    width: calc(100% + 100px);
-    background: inherit;
-    -webkit-filter: blur(10px) saturate(1.5);
-}
-
-body #modal-trigger:after {
-    content: attr(data-buttonTitle);
-    display: block;
-    position: absolute;
-    top: 0;
-    left: 0;
-    z-index: 2;
-    height: 100%;
-    width: 100%;
-    background: rgba(255, 255, 255, 0.3);
-}
-
-body #modal {
     position: absolute;
     opacity: 0;
-    top: 50%;
-    left: 50%;
-    height: 300px;
-    width: 500px;
-    margin: -150px 0 0 -250px;
+    top: 20%;
+    left: 20%;
+    height: 400px;
+    width: 600px;
     transition: none;
-    background: inherit;
-    overflow: hidden;
-    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.4);
+    overflow-x: hidden;
+    overflow-y: hidden;
+    border-radius: 6px;
     box-shadow: 0 0 50px 5px rgba(0, 0, 0, 0.2);
+
+    /* Hide scrollbar for IE, Edge and Firefox*/
+    -ms-overflow-style: none;
+    scrollbar-width: none;
 }
 
-body #modal.show {
+#modal.show {
     opacity: 1;
 }
 
-body #modal #content {
-    position: absolute;
-    top: 0;
-    left: 0;
-    z-index: 1;
-    height: 100%;
-    width: 100%;
-    background: rgba(255, 255, 255, 0.4);
+#modal #mdl_content {
+    position: relative;
+    z-index: 12;
+    height: 90%;
+    width: 98%;
+    margin: auto auto;
+    margin-top: 3px;
+    border: 1px solid rgba(0, 0, 0, 0.315);
+    background: rgba(255, 255, 255, 0.8);
     line-height: 300px;
     text-align: center;
+    overflow-x: hidden;
+    /* Hide scrollbar for IE, Edge and Firefox*/
+    -ms-overflow-style: none;
+    scrollbar-width: none;
 }
 
-body #modal #background {
-    background: inherit;
+#modal #background {
+    background: rgba(255, 255, 255, 0.7);
     position: absolute;
+    z-index: 11;
     top: -50px;
     left: -50px;
     height: calc(100% + 100px);
     width: calc(100% + 100px);
     -webkit-filter: blur(10px);
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+#modal::-webkit-scrollbar {
+    display: none;
+}
+#modal #mdl_content::-webkit-scrollbar {
+    display: none;
+}
+
+#mdl_head {
+    z-index: 12;
+    font-size: 14px;
+    height: 27px;
+    line-height: 25px;
+    padding: 2px 10px;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    border-bottom: 0;
+    color: black;
+    background-color: white;
+    position: relative;
+    display: block;
+}
+
+#close_mdl {
+    z-index: 12;
+    position: absolute;
+    margin: 3px;
+    height: 20px;
+    width: 20px;
+    text-align: right;
+    line-height: 20px;
+    font-size: 16px;
+    top: 4px;
+    right: 6px;
+    color: black;
+    border-radius: 5px;
+    cursor: pointer;
+    opacity: 0.5;
+}
+
+#close_mdl:hover {
+    opacity: 1;
 }

@@ -409,7 +409,7 @@ class iCovid (iCovidBase):
         '''
 
         # manual update
-        config['Tested'] = 20266  # int(''.join(tested_p.text.split()[7:9]))
+        config['Tested'] = 20869  # int(''.join(tested_p.text.split()[7:9]))
 
         return config
 

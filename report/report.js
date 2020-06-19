@@ -47,6 +47,14 @@ $('.enabled').hover(
         $('#rd_sick').html($(this).attr('sick'))
         $('#rd_recv').html($(this).attr('recovered'))
         $('#rd_dead').html($(this).attr('dead'))
+
+        $('#rd_name').attr('text', $(this).attr('title'));
+        $('#rd_test').attr('text', $(this).attr('tested'));
+        $('#rd_sick').attr('text', $(this).attr('sick'));
+        $('#rd_recv').attr('text', $(this).attr('recovered'));
+        $('#rd_dead').attr('text', $(this).attr('dead'));
+
+        $('#rd_sick').attr('delta', $(this).attr('d_sick'));
     },
     function() {
         $description.removeClass('active');
@@ -55,6 +63,14 @@ $('.enabled').hover(
         $('#rd_sick').html($('#total').attr('sick'))
         $('#rd_recv').html($('#total').attr('recovered'))
         $('#rd_dead').html($('#total').attr('dead'))
+
+        $('#rd_name').attr('text', $('#total').attr('title'));
+        $('#rd_test').attr('text', $('#total').attr('tested'));
+        $('#rd_sick').attr('text', $('#total').attr('sick'));
+        $('#rd_recv').attr('text', $('#total').attr('recovered'));
+        $('#rd_dead').attr('text', $('#total').attr('dead'));
+
+        $('#rd_sick').attr('delta', $('#total').attr('d_sick'));
 });
 
 $('.delta').hover(
@@ -114,6 +130,7 @@ function country_changed(name) {
         $('#total').attr('recovered', $(node_id).attr('recovered'));
         $('#total').attr('dead',      $(node_id).attr('dead'));
 
+        $('#total').attr('peak',        $(node_id).attr('peak'));
         $('#total').attr('d_tested',    $(node_id).attr('d_tested'));
         $('#total').attr('d_sick',      $(node_id).attr('d_sick'));
         $('#total').attr('d_recovered', $(node_id).attr('d_recovered'));
@@ -125,6 +142,7 @@ function country_changed(name) {
         $('#total').attr('recovered', '—');
         $('#total').attr('dead',      '—');
 
+        $('#total').attr('peak',        '—');
         $('#total').attr('d_tested',    '—');
         $('#total').attr('d_sick',      '—');
         $('#total').attr('d_recovered', '—');
@@ -149,6 +167,9 @@ function country_changed(name) {
     $('#rd_sick').attr('delta', $('#total').attr('d_sick'));
     $('#rd_recv').attr('delta', $('#total').attr('d_recovered'));
     $('#rd_dead').attr('delta', $('#total').attr('d_dead'));
+
+    /* Copy peak value per region */
+    $('#rd_peak').html($('#total').attr('peak'));
 }
 
 /* Copy current region to clipboard.
@@ -162,24 +183,24 @@ function copy2clipboard(text) {
     $temp.remove();
 }
 
-function copy_info() {
+function copy_info(copy_type='all') {
     data = ' У регіоні "' + $('#rd_name').text() + '" ';
     info = []
 
-    if ($('#rd_test').text() != '—') {
-        info.push('перевірили '  + $('#rd_test').text() + ' осіб');
+    if ($('#rd_test').text() != '—' && (copy_type == 'all' || copy_type == 'test')) {
+        info.push('перевірили '  + $('#rd_test').attr('text') + ' осіб ('  + $('#rd_test').attr('delta') + ' за добу)');
     }
 
-    if ($('#rd_sick').text() != '—') {
-        info.push('захворіли '   + $('#rd_sick').text() + ' осіб');
+    if ($('#rd_sick').text() != '—' && (copy_type == 'all' || copy_type == 'sick')) {
+        info.push('захворіли '   + $('#rd_sick').attr('text') + ' осіб ('  + $('#rd_sick').attr('delta') + ' за добу)');
     }
 
-    if ($('#rd_recv').text() != '—') {
-        info.push('одужали '     + $('#rd_recv').text() + ' осіб');
+    if ($('#rd_recv').text() != '—' && (copy_type == 'all' || copy_type == 'recv')) {
+        info.push('одужали '     + $('#rd_recv').attr('text') + ' осіб ('  + $('#rd_recv').attr('delta') + ' за добу)');
     }
 
-    if ($('#rd_dead').text() != '—') {
-        info.push('померли '     + $('#rd_dead').text() + ' осіб');
+    if ($('#rd_dead').text() != '—' && (copy_type == 'all' || copy_type == 'dead')) {
+        info.push('померли '     + $('#rd_dead').attr('text') + ' осіб ('  + $('#rd_dead').attr('delta') + ' за добу)');
     }
 
     data += info.join(', ') + '.';
@@ -214,3 +235,56 @@ function close_ntf() {
     $("#notification").css('opacity', '0');
     $("#notification").css('display', 'none');
 }
+
+
+/* New code */
+// draggable plugin
+
+(function($) {
+    $.fn.drags = function(opt) {
+
+        opt = $.extend({handle:"",cursor:"move"}, opt);
+
+        if(opt.handle === "") {
+            var $el = this;
+        } else {
+            var $el = this.find(opt.handle);
+        }
+
+        return $el.css('cursor', opt.cursor).on("mousedown", function(e) {
+            if(opt.handle === "") {
+                var $drag = $(this).addClass('draggable');
+            } else {
+                var $drag = $(this).addClass('active-handle').parent().addClass('draggable');
+            }
+            var z_idx = $drag.css('z-index'),
+                drg_h = $drag.outerHeight(),
+                drg_w = $drag.outerWidth(),
+                pos_y = $drag.offset().top + drg_h - e.pageY,
+                pos_x = $drag.offset().left + drg_w - e.pageX;
+            $drag.css('z-index', 1000).parents().on("mousemove", function(e) {
+                $('.draggable').offset({
+                    top:e.pageY + pos_y - drg_h,
+                    left:e.pageX + pos_x - drg_w
+                }).on("mouseup", function() {
+                    $(this).removeClass('draggable').css('z-index', z_idx);
+                });
+            });
+            e.preventDefault(); // disable selection
+        }).on("mouseup", function() {
+            if(opt.handle === "") {
+                $(this).removeClass('draggable');
+            } else {
+                $(this).removeClass('active-handle').parent().removeClass('draggable');
+            }
+        });
+
+    }
+})(jQuery);
+
+$('#modal').drags();
+
+$('#modal-trigger').click(function(){
+  $(this).addClass('hide');
+  $('#modal').addClass('show');
+});

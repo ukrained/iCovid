@@ -22,8 +22,22 @@
 {{ regions }}
         </div>
 
+        <div id="regiondetails">
+            <div id="detailspanel">
+                <div style="display: flex; justify-content: left;">
+                    <a id="settings" class="btn-settings">⚙️</a>
+                    <a id="rd_peak"  class="btn-peak" onclick="notify('🧪 Порогове значення кількості хворих для даного регіону.', 15000)">🧪 4000</a>
+                </div>
+                <div style="display: flex; justify-content: right;">
+                    <a id="rd_details"  class="btn-more" onclick="notify('🧮 Розділ \'Деталі\' ще не готовий.<br>У майбутньому тут буде детальніша інформація про обраний регіон.', 15000)">Деталі 🧮</a>
+                    <a id="rd_dynamics" class="btn-more" onclick="notify('📈 Розділ \'Динаміка\' поки готовий.<br>Скоро тут буде інформація про динаміку різних процесів пов\'язаних з вірусом.', 15000)">Динаміка 📈</a>
+                    <a id="rd_stats"    class="btn-more" onclick="notify('📊 Розділ \'Статистика\' наразі не готовий.<br>Тут ми відображатимемо основну статистичну інформацію щодо поширення хвороби.', 15000)">Статистика 📊</a>
+                </div>
+            </div>
+        </div>
+
         <div id="regioninfo">
-            <table id="regiondata" cellspacing="0" onclick="copy_info()">
+            <table id="regiondata" cellspacing="0">
                 <tr>
                     <th class="thcell">Адміністративна одиниця 📌</th>
                     <th class="thcell">Перевірені 📋</th>
@@ -32,11 +46,11 @@
                     <th class="thcell">Померли 💢</th>
                 </tr>
                 <tr id="data_row">
-                    <td id="rd_name" class="trcell"></td>
-                    <td id="rd_test" class="trcell delta" d_dir="1" delta="" text=""></td>
-                    <td id="rd_sick" class="trcell delta" d_dir="0" delta="" text=""></td>
-                    <td id="rd_recv" class="trcell delta" d_dir="1" delta="" text=""></td>
-                    <td id="rd_dead" class="trcell delta" d_dir="0" delta="" text=""></td>
+                    <td id="rd_name" onclick="copy_info('all')" class="trcell"></td>
+                    <td id="rd_test" onclick="copy_info('test')" class="trcell delta" d_dir="1" delta="" text=""></td>
+                    <td id="rd_sick" onclick="copy_info('sick')" class="trcell delta" d_dir="0" delta="" text=""></td>
+                    <td id="rd_recv" onclick="copy_info('recv')" class="trcell delta" d_dir="1" delta="" text=""></td>
+                    <td id="rd_dead" onclick="copy_info('dead')" class="trcell delta" d_dir="0" delta="" text=""></td>
                 </tr>
             </table>
         </div>

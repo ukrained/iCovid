@@ -2,8 +2,8 @@
 
 # metadata
 __title__ = 'iCovid Monitoring Utility'
-__version__ = '1.0.1'
-__release__ = '20 May 2020'
+__version__ = '1.1.3'
+__release__ = '19 Jun 2020'
 __author__ = 'Alex Viytiv'
 
 # modules
@@ -313,14 +313,14 @@ class iCovid (iCovidBase):
     def __upd_ukr_total(self, config):
         # covid19.gov.ua
         self.logger.normal(' - Збір загальних даних з covid19.gov.ua ..')
-        page = self._web_request('https://covid19.gov.ua/')
+        page = self._web_request('https://covid19.gov.ua/en/')
 
         divs = self._html_get_node(page, './/div[@class="one-field light-box info-count"]')
         if len(divs) != 4:
             self.logger.error('Неочікуване число елементів - %d' % len(divs))
             exit(1)
 
-        for i, case in enumerate(['Tested', 'Sick', 'Recovered', 'Dead']):
+        for i, case in enumerate(['Tested', 'Sick', 'Dead', 'Recovered']):
             config[case] = int(divs[i].xpath('.//div')[0].text.strip().replace(' ', ''))
 
         return config
@@ -387,12 +387,29 @@ class iCovid (iCovidBase):
 
         tested_links = ['https://portal.lviv.ua/news/2020/06/01/covid-19-na-lvivshchyni-karta-poshyrennia-po-rajonakh',
                         'https://portal.lviv.ua/news/2020/06/02/v-iakykh-rajonakh-lvivshchyny-najbilshe-khvorykh-na-covid-19-karta-poshyrennia',
-                        'https://portal.lviv.ua/news/2020/06/03/novyj-antyrekord-lvivshchyny-za-dobu-vyiavyly-96-khvorykh-na-koronavirus']
-        page = self._web_request(tested_links[-1])
+                        'https://portal.lviv.ua/news/2020/06/03/novyj-antyrekord-lvivshchyny-za-dobu-vyiavyly-96-khvorykh-na-koronavirus',
+                        'https://portal.lviv.ua/news/2020/06/04/covid-19-na-lvivshchyni-85-khvorykh-za-dobu',
+                        'https://portal.lviv.ua/news/2020/06/05/koronavirusom-zarazylysia-majzhe-2000-meshkantsiv-lvivshchyny',
+                        'https://portal.lviv.ua/news/2020/06/07/koronavirus-na-lvivshchyni-68-novykh-khvorykh',
+                        'https://portal.lviv.ua/news/2020/06/08/na-lvivshchyni-vzhe-73-letalni-vypadky-cherez-covid-19',
+                        'https://portal.lviv.ua/news/2020/06/09/covid-19-na-lvivshchyni-za-dobu-vyiavyly-49-khvorykh',
+                        'https://portal.lviv.ua/news/2020/06/10/2289-vypadkiv-covid-19-na-lvivshchyni-de-najbilshe-khvorykh',
+                        'https://portal.lviv.ua/news/2020/06/11/chomu-u-rajonakh-lvivshchyny-liudy-menshe-khvoriiut-na-koronavirus-poiasnennia-epidemioloha',
+                        'https://portal.lviv.ua/news/2020/06/12/novi-vypadky-covid-19-na-lvivshchyni-zvidky-khvori',
+                        'https://portal.lviv.ua/news/2020/06/13/koronavirusnyj-antyrekord-na-lvivshchyni-za-dobu-132-novykh-khvorykh',
+                        'https://portal.lviv.ua/news/2020/06/14/za-dobu-vid-koronavirusu-na-lvivshchyni-pomer-cholovik-ta-troie-zhinok',
+                        'https://portal.lviv.ua/news/2020/06/15/de-na-lvivshchyni-najbilshe-khvorykh-na-koronavirus',
+                        'https://portal.lviv.ua/news/2020/06/16/lviv-nadali-lidyruie-v-oblasti-za-kilkistiu-khvorykh-na-covid-19',
+                        'https://portal.lviv.ua/news/2020/06/17/3227-vypadkiv-covid-19-na-lvivshchyni-de-najbilshe-khvorykh',
+                        'https://portal.lviv.ua/news/2020/06/18/koronavirus-na-lvivshchyni-karta-poshyrennia-po-rajonakh-oblasti']
+
+        ''' Commented due to manual updates
+        page = self._web_request(tested_links[0])
         tested_p = self._html_get_node(page, './/div[@class="article-content"]//p')[3]
+        '''
 
         # manual update
-        config['Tested'] = 13610  # int(''.join(tested_p.text.split()[7:9]))
+        config['Tested'] = 20266  # int(''.join(tested_p.text.split()[7:9]))
 
         return config
 
@@ -400,10 +417,7 @@ class iCovid (iCovidBase):
         # moz.gov.ua
         # detailed - https://index.minfin.com.ua/ua/reference/coronavirus/ukraine/
         self.logger.normal(' - Збір даних про регіони з portal.lviv.ua ..')
-        tested_links = ['https://portal.lviv.ua/news/2020/06/01/covid-19-na-lvivshchyni-karta-poshyrennia-po-rajonakh',
-                        'https://portal.lviv.ua/news/2020/06/02/v-iakykh-rajonakh-lvivshchyny-najbilshe-khvorykh-na-covid-19-karta-poshyrennia',
-                        'https://portal.lviv.ua/news/2020/06/03/novyj-antyrekord-lvivshchyny-za-dobu-vyiavyly-96-khvorykh-na-koronavirus']
-        page = self._web_request(tested_links[-1])
+        #page = self._web_request(tested_links[0])
 
         # initial regions data
         initial = ["Бродівський район", "Буський район",
@@ -419,6 +433,7 @@ class iCovid (iCovidBase):
                    "м. Львів"]
         config['Regions'] = {k: 0 for k in initial}
 
+        ''' Commented due to manual updates
         litems = self._html_get_node(page, './/div[@class="article-content"]//ol//li')
         for litem in litems:
             reg, sick = litem.text.replace(';', '').replace('’', '\'').split('–')[:2]
@@ -430,30 +445,31 @@ class iCovid (iCovidBase):
 
             if reg in initial:
                 config['Regions'][reg] = sick
+        '''
 
         # manual update
         config['Regions'] = {
-                "Бродівський район": 21,
-                "Буський район": 29,
-                "Городоцький район": 31,
-                "Дрогобицький район": 29,
-                "Жидачівський район": 6,
-                "Жовківський район": 92,
-                "Золочівський район": 12,
-                "Кам'янка-Бузький район": 20,
-                "Миколаївський район": 24,
-                "Мостиський район": 11,
-                "Перемишлянський район": 15,
-                "Пустомитівський район": 186,
-                "Радехівський район": 8,
-                "Самбірський район": 9,
-                "Сколівський район": 5,
-                "Сокальський район": 46,
-                "Старосамбірський район": 3,
-                "Стрийський район": 48,
-                "Турківський район": 4,
-                "Яворівський район": 86,
-                "м. Львів": 1142
+                "Бродівський район": 40,
+                "Буський район": 36,
+                "Городоцький район": 70,
+                "Дрогобицький район": 44,
+                "Жидачівський район": 16,
+                "Жовківський район": 175,
+                "Золочівський район": 21,
+                "Кам'янка-Бузький район": 82,
+                "Миколаївський район": 62,
+                "Мостиський район": 20,
+                "Перемишлянський район": 40,
+                "Пустомитівський район": 363,
+                "Радехівський район": 12,
+                "Самбірський район": 21,
+                "Сколівський район": 10,
+                "Сокальський район": 107,
+                "Старосамбірський район": 4,
+                "Стрийський район": 66,
+                "Турківський район": 10,
+                "Яворівський район": 211,
+                "м. Львів": 1988
             }
 
         return config
@@ -627,7 +643,7 @@ class iCovid (iCovidBase):
         config = {'Name': 'Московія', 'Code': 'rus', 'ViewBoxSz': '0 0 1250 800',
                   'Population': 145927292, 'Area': 17098246,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 4000, 'Regions': {}}
+                  'Peak': 8000, 'Regions': {}}
 
         config = self.__upd_rus_total(config)
         config = self.__upd_rus_regions(config)
@@ -813,7 +829,7 @@ class iCovid (iCovidBase):
         config = {'Name': 'Угорщина', 'Code': 'hug', 'ViewBoxSz': '0 0 630 400',
                   'Population': 9663123, 'Area': 93030,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 4000, 'Regions': {}}
+                  'Peak': 2000, 'Regions': {}}
 
         config = self.__upd_hug_total(config)
         config = self.__upd_hug_regions(config)
@@ -1038,7 +1054,7 @@ class iCovid (iCovidBase):
         data_yestd = self.db.get({'date': (date.today() - timedelta(days=1)).strftime("%d %b %Y")})
 
         # datetime object containing current date and time
-        curr_date = '\n * Дані станом на {:%d %B %Y [%H:%M:%S]}\n'.format(datetime.now())
+        curr_date = '\n * Дані станом на {:%d %b %Y [%H:%M:%S]}\n'.format(datetime.now())
         text = self.translate('eng', 'ukr', curr_date)
 
         for country, cfg in data_today.items():
@@ -1121,7 +1137,7 @@ class iCovid (iCovidBase):
     def _html_report(self):
         ''' Export data to HTML web page '''
         # define templates for complex nodes
-        total_tmpl = '{}<div id="total{}" title="{}" tested="{}" d_tested="{}" sick="{}" d_sick="{}" recovered="{}" d_recovered="{}" dead="{}" d_dead="{}" style="display: none;"></div>\n'
+        total_tmpl = '{}<div id="total{}" title="{}" peak="{}" tested="{}" d_tested="{}" sick="{}" d_sick="{}" recovered="{}" d_recovered="{}" dead="{}" d_dead="{}" style="display: none;"></div>\n'
         country_tmpl = \
             '            <div class="tab">\n' \
             '                <input type="radio" name="tabgroup" id="{0}" onclick="country_changed(\'{0}\')" autocomplete="off" {1}>\n' \
@@ -1134,7 +1150,7 @@ class iCovid (iCovidBase):
             '                    </svg>\n' \
             '                </div>\n' \
             '            </div>\n'
-        region_tmpl = '{}<path title="{}" tested="{}" sick="{}" recovered="{}" dead="{}"style="fill: rgb({}, {}, {});" class="land enabled" onclick="copy_info()" d="{}"/>\n'
+        region_tmpl = '{}<path title="{}" tested="{}" sick="{}" d_sick="{}" recovered="{}" dead="{}"style="fill: rgb({}, {}, {});" class="land enabled" onclick="copy_info()" d="{}"/>\n'
         vii_tmpl = '<span class="vi_info" onclick="notify(\'{}\', 15000);">☣️</span>'
 
         # create htmlWorker object
@@ -1165,7 +1181,7 @@ class iCovid (iCovidBase):
         # configure default information
         default = today_data.get('Україна')
         y_default = yestd_data.get('Україна')
-        total = total_tmpl.format(tab * 2, '', default['Name'],
+        total = total_tmpl.format(tab * 2, '', default['Name'], default['Peak'],
                                   default['Tested'], default['Tested'] - y_default.get('Tested', 0),
                                   default['Sick'],   default['Sick'] - y_default.get('Sick', 0),
                                   default['Recovered'], default['Recovered'] - y_default.get('Recovered', 0),
@@ -1174,7 +1190,7 @@ class iCovid (iCovidBase):
         for country, data in today_data.items():
             y_data = yestd_data.get(country, {})
             # stage 2 - prepare total info for the country
-            total += total_tmpl.format(tab * 2, '_%s' % data['Code'], data['Name'],
+            total += total_tmpl.format(tab * 2, '_%s' % data['Code'], data['Name'], data['Peak'],
                                        data['Tested'], data['Tested'] - y_data.get('Tested', 0),
                                        data['Sick'], data['Sick'] - y_data.get('Sick', 0),
                                        data['Recovered'], data['Recovered'] - y_data.get('Recovered', 0),
@@ -1188,7 +1204,8 @@ class iCovid (iCovidBase):
             _regions = ''
             for region, path in regions_map[data['Name']].items():
                 # get number of sick people in region
-                sick = data['Regions'].get(region, '—')
+                sick = data['Regions'].get(region, 0)
+                d_sick = sick - y_data['Regions'].get(region, sick)
                 sick = sick if sick else '—'
 
                 # stub for the future development
@@ -1200,7 +1217,7 @@ class iCovid (iCovidBase):
                 aux_colour = int(255 - ((0 if sick == '—' else sick) / color_step))
                 rgb = (255, aux_colour, aux_colour)
 
-                _regions += region_tmpl.format(tab * 7, region, test, sick,
+                _regions += region_tmpl.format(tab * 7, region, test, sick, d_sick,
                                                recv, dead, *rgb, path)
 
             # strip redundant newline

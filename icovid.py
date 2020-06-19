@@ -1295,7 +1295,8 @@ class iCovid (iCovidBase):
         web_files = ['./report/index.html',
                      './report/report.css',
                      './report/report.js',
-                     './report/virus.png']
+                     './report/virus.png',
+                     './report/gear.png']
 
         # copy files
         for wfile in web_files:

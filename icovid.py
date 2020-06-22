@@ -2,8 +2,8 @@
 
 # metadata
 __title__ = 'iCovid Monitoring Utility'
-__version__ = '1.1.3'
-__release__ = '19 Jun 2020'
+__version__ = '1.2.0'
+__release__ = '22 Jun 2020'
 __author__ = 'Alex Viytiv'
 
 # modules
@@ -201,6 +201,14 @@ class dbWorker:
             return self.__db[k_date][k_cont]
 
         return self.__db[k_date]
+
+    def get_dates_list(self):
+        """ Function return list of known dates
+
+        Returns:
+            list: all the known dates
+        """
+        return self.__db.keys()
 
     def __is_db_sync(self):
         # TODO: Check DB is sync
@@ -401,7 +409,11 @@ class iCovid (iCovidBase):
                         'https://portal.lviv.ua/news/2020/06/15/de-na-lvivshchyni-najbilshe-khvorykh-na-koronavirus',
                         'https://portal.lviv.ua/news/2020/06/16/lviv-nadali-lidyruie-v-oblasti-za-kilkistiu-khvorykh-na-covid-19',
                         'https://portal.lviv.ua/news/2020/06/17/3227-vypadkiv-covid-19-na-lvivshchyni-de-najbilshe-khvorykh',
-                        'https://portal.lviv.ua/news/2020/06/18/koronavirus-na-lvivshchyni-karta-poshyrennia-po-rajonakh-oblasti']
+                        'https://portal.lviv.ua/news/2020/06/18/koronavirus-na-lvivshchyni-karta-poshyrennia-po-rajonakh-oblasti',
+                        'https://portal.lviv.ua/news/2020/06/19/na-lvivshchyni-vyiavleno-3540-vypadkiv-infikuvannia-covid-19',
+                        'https://portal.lviv.ua/news/2020/06/20/koronavirus-pidkhopyly-3679-meshkantsiv-lvivshchyny',
+                        'https://portal.lviv.ua/news/2020/06/21/covid-19-na-lvivshchyni-za-dobu-sotnia-novykh-vypadkiv-zvidky-khvori',
+                        'https://portal.lviv.ua/news/2020/06/22/u-lvovi-vzhe-ponad-2300-liudej-zakhvorily-na-koronavirus']
 
         ''' Commented due to manual updates
         page = self._web_request(tested_links[0])
@@ -409,7 +421,7 @@ class iCovid (iCovidBase):
         '''
 
         # manual update
-        config['Tested'] = 20869  # int(''.join(tested_p.text.split()[7:9]))
+        config['Tested'] = 22858  # int(''.join(tested_p.text.split()[7:9]))
 
         return config
 
@@ -449,27 +461,27 @@ class iCovid (iCovidBase):
 
         # manual update
         config['Regions'] = {
-                "Бродівський район": 40,
-                "Буський район": 36,
-                "Городоцький район": 70,
-                "Дрогобицький район": 44,
-                "Жидачівський район": 16,
-                "Жовківський район": 175,
-                "Золочівський район": 21,
-                "Кам'янка-Бузький район": 82,
-                "Миколаївський район": 62,
-                "Мостиський район": 20,
-                "Перемишлянський район": 40,
-                "Пустомитівський район": 363,
-                "Радехівський район": 12,
-                "Самбірський район": 21,
-                "Сколівський район": 10,
-                "Сокальський район": 107,
-                "Старосамбірський район": 4,
-                "Стрийський район": 66,
-                "Турківський район": 10,
-                "Яворівський район": 211,
-                "м. Львів": 1988
+                "Бродівський район": 44,
+                "Буський район": 38,
+                "Городоцький район": 83,
+                "Дрогобицький район": 64,
+                "Жидачівський район": 23,
+                "Жовківський район": 211,
+                "Золочівський район": 27,
+                "Кам'янка-Бузький район": 84,
+                "Миколаївський район": 73,
+                "Мостиський район": 37,
+                "Перемишлянський район": 47,
+                "Пустомитівський район": 410,
+                "Радехівський район": 19,
+                "Самбірський район": 29,
+                "Сколівський район": 15,
+                "Сокальський район": 140,
+                "Старосамбірський район": 6,
+                "Стрийський район": 62,
+                "Турківський район": 18,
+                "Яворівський район": 243,
+                "м. Львів": 2307
             }
 
         return config
@@ -1137,7 +1149,7 @@ class iCovid (iCovidBase):
     def _html_report(self):
         ''' Export data to HTML web page '''
         # define templates for complex nodes
-        total_tmpl = '{}<div id="total{}" title="{}" peak="{}" tested="{}" d_tested="{}" sick="{}" d_sick="{}" recovered="{}" d_recovered="{}" dead="{}" d_dead="{}" style="display: none;"></div>\n'
+        total_tmpl = '{}<div id="total{}" title="{}" peak="{}" tested="{}" d_tested="{}" sick="{}" d_sick="{}" recovered="{}" d_recovered="{}" dead="{}" d_dead="{}" data-days=\'{}\' data-test=\'{}\' data-sick=\'{}\' data-recv=\'{}\' data-dead=\'{}\' style="display: none;"></div>\n'
         country_tmpl = \
             '            <div class="tab">\n' \
             '                <input type="radio" name="tabgroup" id="{0}" onclick="country_changed(\'{0}\')" autocomplete="off" {1}>\n' \
@@ -1181,20 +1193,42 @@ class iCovid (iCovidBase):
         # configure default information
         default = today_data.get('Україна')
         y_default = yestd_data.get('Україна')
+
+        days_to_show = 14
+
+        # prepare dynamics data
+        data_days = '[%s]' % ', '.join(['"%s"' % day for day in self.db.get_dates_list() if self.db.get({'date': day, 'country': 'Україна'})][-days_to_show:])
+        data_test = '[%s]' % ', '.join(['%d' % self.db.get({'date': day, 'country': 'Україна'})['Tested'] for day in self.db.get_dates_list() if self.db.get({'date': day, 'country': 'Україна'})][-days_to_show:])
+        data_sick = '[%s]' % ', '.join(['%d' % self.db.get({'date': day, 'country': 'Україна'})['Sick'] for day in self.db.get_dates_list() if self.db.get({'date': day, 'country': 'Україна'})][-days_to_show:])
+        data_recv = '[%s]' % ', '.join(['%d' % self.db.get({'date': day, 'country': 'Україна'})['Recovered'] for day in self.db.get_dates_list() if self.db.get({'date': day, 'country': 'Україна'})][-days_to_show:])
+        data_dead = '[%s]' % ', '.join(['%d' % self.db.get({'date': day, 'country': 'Україна'})['Dead'] for day in self.db.get_dates_list() if self.db.get({'date': day, 'country': 'Україна'})][-days_to_show:])
+
+        # make default total data
         total = total_tmpl.format(tab * 2, '', default['Name'], default['Peak'],
                                   default['Tested'], default['Tested'] - y_default.get('Tested', 0),
                                   default['Sick'],   default['Sick'] - y_default.get('Sick', 0),
                                   default['Recovered'], default['Recovered'] - y_default.get('Recovered', 0),
-                                  default['Dead'], default['Dead'] - y_default.get('Dead', 0))
+                                  default['Dead'], default['Dead'] - y_default.get('Dead', 0),
+                                  data_days, data_test, data_sick, data_recv, data_dead)
+
 
         for country, data in today_data.items():
             y_data = yestd_data.get(country, {})
+            # prepare dynamics data
+            data_days = '[%s]' % ', '.join(['"%s"' % day for day in self.db.get_dates_list() if self.db.get({'date': day, 'country': country})][-days_to_show:])
+            data_test = '[%s]' % ', '.join(['%d' % self.db.get({'date': day, 'country': country})['Tested'] for day in self.db.get_dates_list() if self.db.get({'date': day, 'country': country})][-days_to_show:])
+            data_sick = '[%s]' % ', '.join(['%d' % self.db.get({'date': day, 'country': country})['Sick'] for day in self.db.get_dates_list() if self.db.get({'date': day, 'country': country})][-days_to_show:])
+            data_recv = '[%s]' % ', '.join(['%d' % self.db.get({'date': day, 'country': country})['Recovered'] for day in self.db.get_dates_list() if self.db.get({'date': day, 'country': country})][-days_to_show:])
+            data_dead = '[%s]' % ', '.join(['%d' % self.db.get({'date': day, 'country': country})['Dead'] for day in self.db.get_dates_list() if self.db.get({'date': day, 'country': country})][-days_to_show:])
+
+
             # stage 2 - prepare total info for the country
             total += total_tmpl.format(tab * 2, '_%s' % data['Code'], data['Name'], data['Peak'],
                                        data['Tested'], data['Tested'] - y_data.get('Tested', 0),
                                        data['Sick'], data['Sick'] - y_data.get('Sick', 0),
                                        data['Recovered'], data['Recovered'] - y_data.get('Recovered', 0),
-                                       data['Dead'], data['Dead'] - y_data.get('Dead', 0))
+                                       data['Dead'], data['Dead'] - y_data.get('Dead', 0),
+                                       data_days, data_test, data_sick, data_recv, data_dead)
 
             # stage 3 - regions data
             # max_sick = max(data['Regions'].values())

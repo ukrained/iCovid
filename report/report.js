@@ -1,5 +1,9 @@
 $description = $(".description");
 $notification = -1;
+$test_chart = null;
+$sick_chart = null;
+$recv_chart = null;
+$dead_chart = null;
 
 $(document).ready(function(){
     /* Hack for ZZZ hosting */
@@ -138,6 +142,13 @@ function country_changed(name) {
         $('#total').attr('d_sick',      $(node_id).attr('d_sick'));
         $('#total').attr('d_recovered', $(node_id).attr('d_recovered'));
         $('#total').attr('d_dead',      $(node_id).attr('d_dead'));
+
+        $('#total').data('days', $(node_id).data('days'));
+        $('#total').data('test', $(node_id).data('test'));
+        $('#total').data('sick', $(node_id).data('sick'));
+        $('#total').data('recv', $(node_id).data('recv'));
+        $('#total').data('dead', $(node_id).data('dead'));
+
     } else {
         $('#total').attr('title',     '—');
         $('#total').attr('tested',    '—');
@@ -150,6 +161,12 @@ function country_changed(name) {
         $('#total').attr('d_sick',      '—');
         $('#total').attr('d_recovered', '—');
         $('#total').attr('d_dead',      '—');
+
+        $('#total').data('days',   '[]');
+        $('#total').data('test',   '[]');
+        $('#total').data('sick',   '[]');
+        $('#total').data('recv',   '[]');
+        $('#total').data('dead',   '[]');
     }
 
     /* Initialize total data */
@@ -173,6 +190,12 @@ function country_changed(name) {
 
     /* Copy peak value per region */
     $('#rd_peak').html('🧪 ' + $('#total').attr('peak'));
+
+    /* Redraw all the charts */
+    redraw_chart('test');
+    redraw_chart('sick');
+    redraw_chart('recv');
+    redraw_chart('dead');
 }
 
 /* Copy current region to clipboard.
@@ -291,12 +314,128 @@ function close_ntf() {
 
 $('#modal').drags();
 
+function redraw_chart(chart_name) {
+    var full_chart_name = chart_name + '_chart';
+    if (full_chart_name == 'test_chart' && $test_chart != null) {
+        $test_chart.destroy();
+    }
+
+    if (full_chart_name == 'sick_chart' && $sick_chart != null) {
+        $sick_chart.destroy();
+    }
+
+    if (full_chart_name == 'recv_chart' && $recv_chart != null) {
+        $recv_chart.destroy();
+    }
+
+    if (full_chart_name == 'dead_chart' && $dead_chart != null) {
+        $dead_chart.destroy();
+    }
+
+    var chart    = document.getElementById(full_chart_name).getContext('2d'),
+        gradient = chart.createLinearGradient(0, 0, 0, 450);
+
+    gradient.addColorStop(0, 'rgba(255, 0,0, 0.5)');
+    gradient.addColorStop(0.5, 'rgba(255, 0, 0, 0.25)');
+    gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
+
+    var data  = {
+        labels: $("#total").data('days'),
+        datasets: [{
+                label: '',
+                backgroundColor: gradient,
+                pointBackgroundColor: 'white',
+                borderWidth: 1,
+                borderColor: '#911215',
+                data:  $("#total").data(chart_name)
+        }]
+    };
+
+
+    var options = {
+        responsive: true,
+        maintainAspectRatio: true,
+        animation: {
+            easing: 'easeInOutQuad',
+            duration: 20
+        },
+        scales: {
+            xAxes: [{
+                gridLines: {
+                    color: 'rgba(200, 200, 200, 0.05)',
+                    lineWidth: 1
+                }
+            }],
+            yAxes: [{
+                gridLines: {
+                    color: 'rgba(200, 200, 200, 0.08)',
+                    lineWidth: 1
+                }
+            }]
+        },
+        elements: {
+            line: {
+                tension: 0.4
+            }
+        },
+        legend: {
+            display: false
+        },
+        point: {
+            backgroundColor: 'white'
+        },
+        tooltips: {
+            titleFontFamily: 'Play',
+            backgroundColor: 'rgba(0, 0, 0, 0.3)',
+            titleFontColor: 'white',
+            caretSize: 8,
+            cornerRadius: 10,
+            xPadding: 10,
+            yPadding: 10
+        }
+    };
+
+    var chartInstance = new Chart(chart, {
+        type: 'line',
+        data: data,
+        options: options
+    });
+
+    if (full_chart_name == 'test_chart') {
+        $test_chart = chartInstance;
+    }
+
+    if (full_chart_name == 'sick_chart') {
+        $sick_chart = chartInstance;
+    }
+
+    if (full_chart_name == 'recv_chart') {
+        $recv_chart = chartInstance;
+    }
+
+    if (full_chart_name == 'dead_chart') {
+        $dead_chart = chartInstance;
+    }
+
+    console.log('Redraw a chart ' + full_chart_name);
+}
+
 function open_modal(name, content_id) {
     $('#mdl_head').html(name + '<span id="close_mdl" onclick="close_modal()">❌</span>');
     $('#mdl_content').html($('#' + content_id).html());
+
+    if (content_id == 'storage_dynamics') {
+        redraw_chart('test');
+        redraw_chart('sick');
+        redraw_chart('recv');
+        redraw_chart('dead');
+    }
+
+    $('#modal').removeClass('hide');
     $('#modal').addClass('show');
 }
 
 function close_modal() {
     $('#modal').removeClass('show');
+    $('#modal').addClass('hide');
 }

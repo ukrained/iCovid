@@ -26,7 +26,7 @@
             <div id="detailspanel">
                 <div style="display: flex; justify-content: left;">
                     <a id="settings" class="btn-settings" onclick="open_modal('Налаштування', 'storage_settings')"><img src="gear.png"></a>
-                    <a id="rd_peak"  class="btn-peak" onclick="notify('🧪 Порогове значення кількості хворих для даного регіону.', 15000)">🧪 ----</a>
+                    <a id="rd_peak"  class="btn-peak" onclick="notify('👨🏻‍⚕️ Поріг захворюваності.<br><br>Цей параметр відображає порогове значення захворюваності для даного регіону.', 15000)">👨🏻‍⚕️ ----</a>
                 </div>
                 <div style="display: flex; justify-content: right;">
                     <a id="rd_details"  class="btn-more-inactive" onclick="notify('🧮 Розділ \'Деталі\' ще не готовий.<br><br>👉 У майбутньому тут буде детальніша інформація про обраний регіон.', 15000)">Деталі 🧮</a>
@@ -37,7 +37,7 @@
         </div>
 
         <div id="modal" autocomplete="off" >
-            <span id="mdl_head">Modal window <span id="close_mdl" onclick="close_modal()">❌</span></span>
+            <span id="mdl_head">Вікно <span id="close_mdl" onclick="close_modal()">❌</span></span>
             <div id="mdl_content">
             </div>
             <div id="background"></div>
@@ -65,16 +65,16 @@
                 <p style="padding: 30px">
                     💌 Пишіть ваші запитання чи пропозиції за адресою 💌
                     <br>
-                    <a href="mailto: sviytiv@gmail.com">
-                        sviytiv@gmail.com
+                    <a href="mailto: noemail@gmail.com">
+                        noemail@gmail.com
                     </a>
                     <br><br>
-                    Версія 1.2.0 [22 Jun 2020]
+                    Версія {{ version }}
                 </p>
             </div>
             <div id="storage_dynamics">
                 <p style="padding: 15px 3%; text-align: left;">
-                    📋 Динаміка кількості перевірених осіб.
+                    🧪 Динаміка кількості перевірених осіб.
                 </p>
                 <div class="line-chart">
                     <div class="aspect-ratio">
@@ -82,7 +82,7 @@
                     </div>
                 </div>
                 <p style="padding: 15px 3%; text-align: left;">
-                    💊 Динаміка кількості хворих осіб.
+                    💉 Динаміка кількості хворих осіб.
                 </p>
                 <div class="line-chart">
                     <div class="aspect-ratio">
@@ -98,7 +98,7 @@
                     </div>
                 </div>
                 <p style="padding: 15px 3%; text-align: left;">
-                    💢 Динаміка кількості померлих осіб.
+                    🖤 Динаміка кількості померлих осіб.
                 </p>
                 <div class="line-chart">
                     <div class="aspect-ratio">
@@ -111,11 +111,11 @@
         <div id="regioninfo">
             <table id="regiondata" cellspacing="0">
                 <tr>
-                    <th class="thcell">Адміністративна одиниця 📌</th>
-                    <th class="thcell">Перевірені 📋</th>
-                    <th class="thcell">Хворі 💊</th>
-                    <th class="thcell">Одужали 💖</th>
-                    <th class="thcell">Померли 💢</th>
+                    <th class="thcell">📍 Адміністративна одиниця</th>
+                    <th class="thcell">🧪 Перевірені</th>
+                    <th class="thcell">💉 Хворі</th>
+                    <th class="thcell">💖 Одужали</th>
+                    <th class="thcell">🖤 Померли</th>
                 </tr>
                 <tr id="data_row">
                     <td id="rd_name" onclick="copy_info('all')" class="trcell"></td>

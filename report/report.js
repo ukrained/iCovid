@@ -35,7 +35,7 @@ $(document).ready(function(){
     $('#rd_dead').attr('delta', $('#total').attr('d_dead'))
 
     /* Default peak value */
-    $('#rd_peak').html('🧪 ' + $('#total').attr('peak'));
+    $('#rd_peak').html('👨🏻‍⚕️ ' + $('#total').attr('peak'));
 
     /* Welcome message */
     msg = 'Вітаємо!<br>На цій сторінці ви можете отримати коротку інформацію про поширення вірусу SARS-nCov-2 на теренах України та країн світу.<br><br>👉 Щоб отримати інформацію про певний регіон, наведіть на нього вказівник.<br><br>👉 Щоб побачити зміну кількості осіб відносно попередньої доби, наведіть на значення потрібного критерію.<br><br>👉 Щоб скопіювати дані, натисність на регіон чи на його назву у панелі даних.<br><br>Гарного вам дня!';
@@ -189,7 +189,7 @@ function country_changed(name) {
     $('#rd_dead').attr('delta', $('#total').attr('d_dead'));
 
     /* Copy peak value per region */
-    $('#rd_peak').html('🧪 ' + $('#total').attr('peak'));
+    $('#rd_peak').html('👨🏻‍⚕️ ' + $('#total').attr('peak'));
 
     /* Redraw all the charts */
     redraw_chart('test');
@@ -315,7 +315,9 @@ function close_ntf() {
 $('#modal').drags();
 
 function redraw_chart(chart_name) {
+    /* Create full name of chart */
     var full_chart_name = chart_name + '_chart';
+
     if (full_chart_name == 'test_chart' && $test_chart != null) {
         $test_chart.destroy();
     }
@@ -425,6 +427,7 @@ function open_modal(name, content_id) {
     $('#mdl_content').html($('#' + content_id).html());
 
     if (content_id == 'storage_dynamics') {
+        /* Redraw charts */
         redraw_chart('test');
         redraw_chart('sick');
         redraw_chart('recv');

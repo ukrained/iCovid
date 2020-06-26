@@ -308,7 +308,8 @@ class iCovid (iCovidBase):
                 continue
 
     def _upd_ukr(self):
-        config = {'Name': 'Україна', 'Code': 'ukr', 'ViewBoxSz': '0 0 640 410',
+        config = {'Name': 'Україна', 'Code': 'ukr',
+                  'ViewBoxSz': '0 0 640 410', 'ViewBoxLineSz': 0.7,
                   'Population': 43762985, 'Area': 603628,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
                   'Peak': 4000, 'Regions': {}}
@@ -337,7 +338,7 @@ class iCovid (iCovidBase):
         # moz.gov.ua
         # detailed - https://index.minfin.com.ua/ua/reference/coronavirus/ukraine/
         self.logger.normal(' - Збір даних про регіони з moz.gov.ua ..')
-        page = self._web_request('https://moz.gov.ua/article/news/operativna-informacija-pro-poshirennja-koronavirusnoi-infekcii-2019-ncov-1')
+        page = self._web_request('https://moz.gov.ua/article/news/operativna-informacija-pro-poshirennja-koronavirusnoi-infekcii-2019-ncov1')
 
         # initial regions data
         initial = ["Автономна Республіка Крим", "Вінницька область",
@@ -367,7 +368,8 @@ class iCovid (iCovidBase):
         return config
 
     def _upd_ulv(self):
-        config = {'Name': 'Львівщина', 'Code': 'ulv', 'ViewBoxSz': '0 0 1300 1300',
+        config = {'Name': 'Львівщина', 'Code': 'ulv',
+                  'ViewBoxSz': '0 0 1300 1300', 'ViewBoxLineSz': 2,
                   'Population': 2529608, 'Area': 21833,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
                   'Peak': 500, 'Regions': {},
@@ -413,7 +415,10 @@ class iCovid (iCovidBase):
                         'https://portal.lviv.ua/news/2020/06/19/na-lvivshchyni-vyiavleno-3540-vypadkiv-infikuvannia-covid-19',
                         'https://portal.lviv.ua/news/2020/06/20/koronavirus-pidkhopyly-3679-meshkantsiv-lvivshchyny',
                         'https://portal.lviv.ua/news/2020/06/21/covid-19-na-lvivshchyni-za-dobu-sotnia-novykh-vypadkiv-zvidky-khvori',
-                        'https://portal.lviv.ua/news/2020/06/22/u-lvovi-vzhe-ponad-2300-liudej-zakhvorily-na-koronavirus']
+                        'https://portal.lviv.ua/news/2020/06/22/u-lvovi-vzhe-ponad-2300-liudej-zakhvorily-na-koronavirus',
+                        'https://portal.lviv.ua/news/2020/06/23/4220-vypadkiv-covid-19-na-lvivshchyni-karta-poshyrennia-po-rajonakh',
+                        'https://portal.lviv.ua/news/2020/06/24/koronavirus-na-lvivshchyni-pidtverdyly-u-shche-203-liudej',
+                        'https://portal.lviv.ua/news/2020/06/25/koronavirus-na-lvivshchyni-karta-poshyrennia-rajonamy']
 
         ''' Commented due to manual updates
         page = self._web_request(tested_links[0])
@@ -421,7 +426,7 @@ class iCovid (iCovidBase):
         '''
 
         # manual update
-        config['Tested'] = 22858  # int(''.join(tested_p.text.split()[7:9]))
+        config['Tested'] = 25665  # int(''.join(tested_p.text.split()[7:9]))
 
         return config
 
@@ -461,33 +466,34 @@ class iCovid (iCovidBase):
 
         # manual update
         config['Regions'] = {
-                "Бродівський район": 44,
-                "Буський район": 38,
-                "Городоцький район": 83,
-                "Дрогобицький район": 64,
-                "Жидачівський район": 23,
-                "Жовківський район": 211,
+                "Бродівський район": 55,
+                "Буський район": 43,
+                "Городоцький район": 115,
+                "Дрогобицький район": 71,  # Борислав, Стебник, Дрогобич, Трускавець
+                "Жидачівський район": 38,
+                "Жовківський район": 263,
                 "Золочівський район": 27,
-                "Кам'янка-Бузький район": 84,
-                "Миколаївський район": 73,
-                "Мостиський район": 37,
-                "Перемишлянський район": 47,
-                "Пустомитівський район": 410,
-                "Радехівський район": 19,
-                "Самбірський район": 29,
-                "Сколівський район": 15,
-                "Сокальський район": 140,
-                "Старосамбірський район": 6,
-                "Стрийський район": 62,
-                "Турківський район": 18,
-                "Яворівський район": 243,
-                "м. Львів": 2307
+                "Кам'янка-Бузький район": 133,
+                "Миколаївський район": 102,  # Новий Розділ
+                "Мостиський район": 27,
+                "Перемишлянський район": 61,
+                "Пустомитівський район": 452,
+                "Радехівський район": 20,
+                "Самбірський район": 35,  # Самбір
+                "Сколівський район": 16,
+                "Сокальський район": 179,  # Червоноград
+                "Старосамбірський район": 7,
+                "Стрийський район": 67,  # Моршин, Стрий
+                "Турківський район": 19,
+                "Яворівський район": 319,
+                "м. Львів": 2572
             }
 
         return config
 
     def _upd_isr(self):
-        config = {'Name': 'Ізраїль', 'Code': 'isr', 'ViewBoxSz': '0 0 250 800',
+        config = {'Name': 'Ізраїль', 'Code': 'isr',
+                  'ViewBoxSz': '0 0 250 800', 'ViewBoxLineSz': 1.0,
                   'Population': 8638917, 'Area': 20770,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
                   'Peak': 4000, 'Regions': {},
@@ -578,7 +584,8 @@ class iCovid (iCovidBase):
         return config
 
     def _upd_pol(self):
-        config = {'Name': 'Польща', 'Code': 'pol', 'ViewBoxSz': '0 0 650 600',
+        config = {'Name': 'Польща', 'Code': 'pol',
+                  'ViewBoxSz': '0 0 650 600', 'ViewBoxLineSz': 0.8,
                   'Population': 37851327, 'Area': 312679,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
                   'Peak': 4000, 'Regions': {}}
@@ -652,7 +659,8 @@ class iCovid (iCovidBase):
         return config
 
     def _upd_rus(self):
-        config = {'Name': 'Московія', 'Code': 'rus', 'ViewBoxSz': '0 0 1250 800',
+        config = {'Name': 'Московія', 'Code': 'rus',
+                  'ViewBoxSz': '0 0 1250 800', 'ViewBoxLineSz': 0.8,
                   'Population': 145927292, 'Area': 17098246,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
                   'Peak': 8000, 'Regions': {}}
@@ -664,6 +672,7 @@ class iCovid (iCovidBase):
 
     def __upd_rus_total(self, config):
         # news.google.com
+        # https://covid.ourworldindata.org/data/owid-covid-data.json
         self.logger.normal(' - Збір загальних даних з covid19.rosminzdrav.ru ..')
         page = self._web_request('https://covid19.rosminzdrav.ru/wp-json/api/mapdata/')
         data = json.loads(page)['Items']
@@ -838,7 +847,8 @@ class iCovid (iCovidBase):
         return config
 
     def _upd_hug(self):
-        config = {'Name': 'Угорщина', 'Code': 'hug', 'ViewBoxSz': '0 0 630 400',
+        config = {'Name': 'Угорщина', 'Code': 'hug',
+                  'ViewBoxSz': '0 0 630 400', 'ViewBoxLineSz': 0.7,
                   'Population': 9663123, 'Area': 93030,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
                   'Peak': 2000, 'Regions': {}}
@@ -920,7 +930,8 @@ class iCovid (iCovidBase):
         return config
 
     def _upd_rom(self):
-        config = {'Name': 'Румунія', 'Code': 'rom', 'ViewBoxSz': '200 350 260 450',
+        config = {'Name': 'Румунія', 'Code': 'rom',
+                  'ViewBoxSz': '200 350 260 450', 'ViewBoxLineSz': 0.7,
                   'Population': 19251921, 'Area': 238397,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
                   'Peak': 4000, 'Regions': {}}
@@ -1148,6 +1159,34 @@ class iCovid (iCovidBase):
 
     def _html_report(self):
         ''' Export data to HTML web page '''
+        def make_history(country, days_to_show=14):
+            """ Prepare dynamics data for chart drawing
+
+            Args:
+                country (str): Country name
+                days_to_show (int, optional): Number of days to process. Defaults to 14.
+
+            Returns:
+                dict: History data
+            """
+            data = {'days': [], 'test': [], 'sick': [], 'recv': [], 'dead': []}
+
+            for day in self.db.get_dates_list():
+                info = self.db.get({'date': day, 'country': country})
+                if not info:
+                    continue
+
+                data['days'].append('"%s"' % self.translate('eng', 'ukr', day).split()[0])
+                data['test'].append('"%s"' % info['Tested'])
+                data['sick'].append('"%s"' % info['Sick'])
+                data['recv'].append('"%s"' % info['Recovered'])
+                data['dead'].append('"%s"' % info['Dead'])
+
+            for k, v in data.items():
+                data[k] = '[%s]' % ', '.join(v[-days_to_show:])
+
+            return data
+
         # define templates for complex nodes
         total_tmpl = '{}<div id="total{}" title="{}" peak="{}" tested="{}" d_tested="{}" sick="{}" d_sick="{}" recovered="{}" d_recovered="{}" dead="{}" d_dead="{}" data-days=\'{}\' data-test=\'{}\' data-sick=\'{}\' data-recv=\'{}\' data-dead=\'{}\' style="display: none;"></div>\n'
         country_tmpl = \
@@ -1162,7 +1201,8 @@ class iCovid (iCovidBase):
             '                    </svg>\n' \
             '                </div>\n' \
             '            </div>\n'
-        region_tmpl = '{}<path title="{}" tested="{}" sick="{}" d_sick="{}" recovered="{}" dead="{}"style="fill: rgb({}, {}, {});" class="land enabled" onclick="copy_info()" d="{}"/>\n'
+        region_tmpl = '{}<path title="{}" tested="{}" sick="{}" d_sick="{}" recovered="{}" dead="{}" style="fill: rgb({}, {}, {});{}" class="land enabled" onclick="copy_info()" d="{}"/>\n'
+        path_style_tmpl = ' stroke:#000000; stroke-width:{}; stroke-linecap:butt; stroke-linejoin:round; stroke-opacity:1;'
         vii_tmpl = '<span class="vi_info" onclick="notify(\'{}\', 15000);">☣️</span>'
 
         # create htmlWorker object
@@ -1194,14 +1234,8 @@ class iCovid (iCovidBase):
         default = today_data.get('Україна')
         y_default = yestd_data.get('Україна')
 
-        days_to_show = 14
-
         # prepare dynamics data
-        data_days = '[%s]' % ', '.join(['"%s"' % day for day in self.db.get_dates_list() if self.db.get({'date': day, 'country': 'Україна'})][-days_to_show:])
-        data_test = '[%s]' % ', '.join(['%d' % self.db.get({'date': day, 'country': 'Україна'})['Tested'] for day in self.db.get_dates_list() if self.db.get({'date': day, 'country': 'Україна'})][-days_to_show:])
-        data_sick = '[%s]' % ', '.join(['%d' % self.db.get({'date': day, 'country': 'Україна'})['Sick'] for day in self.db.get_dates_list() if self.db.get({'date': day, 'country': 'Україна'})][-days_to_show:])
-        data_recv = '[%s]' % ', '.join(['%d' % self.db.get({'date': day, 'country': 'Україна'})['Recovered'] for day in self.db.get_dates_list() if self.db.get({'date': day, 'country': 'Україна'})][-days_to_show:])
-        data_dead = '[%s]' % ', '.join(['%d' % self.db.get({'date': day, 'country': 'Україна'})['Dead'] for day in self.db.get_dates_list() if self.db.get({'date': day, 'country': 'Україна'})][-days_to_show:])
+        hist = make_history('Україна', 14)
 
         # make default total data
         total = total_tmpl.format(tab * 2, '', default['Name'], default['Peak'],
@@ -1209,18 +1243,13 @@ class iCovid (iCovidBase):
                                   default['Sick'],   default['Sick'] - y_default.get('Sick', 0),
                                   default['Recovered'], default['Recovered'] - y_default.get('Recovered', 0),
                                   default['Dead'], default['Dead'] - y_default.get('Dead', 0),
-                                  data_days, data_test, data_sick, data_recv, data_dead)
+                                  hist['days'], hist['test'], hist['sick'], hist['recv'], hist['dead'])
 
 
         for country, data in today_data.items():
             y_data = yestd_data.get(country, {})
             # prepare dynamics data
-            data_days = '[%s]' % ', '.join(['"%s"' % day for day in self.db.get_dates_list() if self.db.get({'date': day, 'country': country})][-days_to_show:])
-            data_test = '[%s]' % ', '.join(['%d' % self.db.get({'date': day, 'country': country})['Tested'] for day in self.db.get_dates_list() if self.db.get({'date': day, 'country': country})][-days_to_show:])
-            data_sick = '[%s]' % ', '.join(['%d' % self.db.get({'date': day, 'country': country})['Sick'] for day in self.db.get_dates_list() if self.db.get({'date': day, 'country': country})][-days_to_show:])
-            data_recv = '[%s]' % ', '.join(['%d' % self.db.get({'date': day, 'country': country})['Recovered'] for day in self.db.get_dates_list() if self.db.get({'date': day, 'country': country})][-days_to_show:])
-            data_dead = '[%s]' % ', '.join(['%d' % self.db.get({'date': day, 'country': country})['Dead'] for day in self.db.get_dates_list() if self.db.get({'date': day, 'country': country})][-days_to_show:])
-
+            hist = make_history(country, 14)
 
             # stage 2 - prepare total info for the country
             total += total_tmpl.format(tab * 2, '_%s' % data['Code'], data['Name'], data['Peak'],
@@ -1228,12 +1257,11 @@ class iCovid (iCovidBase):
                                        data['Sick'], data['Sick'] - y_data.get('Sick', 0),
                                        data['Recovered'], data['Recovered'] - y_data.get('Recovered', 0),
                                        data['Dead'], data['Dead'] - y_data.get('Dead', 0),
-                                       data_days, data_test, data_sick, data_recv, data_dead)
+                                       hist['days'], hist['test'], hist['sick'], hist['recv'], hist['dead'])
 
             # stage 3 - regions data
-            # max_sick = max(data['Regions'].values())
-            # max_sick = sum(data['Regions'].values()) / len(data['Regions'].values())
             color_step = (data['Peak'] / 256) or 1
+            path_style = path_style_tmpl.format(data['ViewBoxLineSz'])
 
             _regions = ''
             for region, path in regions_map[data['Name']].items():
@@ -1252,7 +1280,7 @@ class iCovid (iCovidBase):
                 rgb = (255, aux_colour, aux_colour)
 
                 _regions += region_tmpl.format(tab * 7, region, test, sick, d_sick,
-                                               recv, dead, *rgb, path)
+                                               recv, dead, *rgb, path_style, path)
 
             # strip redundant newline
             _regions = _regions.rstrip()
@@ -1271,8 +1299,11 @@ class iCovid (iCovidBase):
         regions = regions.rstrip()
         total = total.rstrip()
 
+        # prepare product version
+        version = '{} [{}]'.format(__version__, self.translate('eng', 'ukr', __release__))
+
         # prepare data for rendering
-        render_cfg = {'updated': updated, 'regions': regions, 'total': total}
+        render_cfg = {'updated': updated, 'regions': regions, 'total': total, 'version': version}
 
         # render and save
         html.render(render_cfg)

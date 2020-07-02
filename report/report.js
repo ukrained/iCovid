@@ -8,7 +8,7 @@ $dead_chart = null;
 $(document).ready(function(){
     /* Hack for ZZZ hosting */
     divs = document.body.getElementsByTagName("div")
-    if (divs[0] && divs[0].childElementCount != 1) {
+    if (divs[0] && divs[0].childElementCount == 1) {
         document.body.removeChild(divs[0]);
     }
 
@@ -364,13 +364,13 @@ function redraw_chart(chart_name) {
         scales: {
             xAxes: [{
                 gridLines: {
-                    color: 'rgba(200, 200, 200, 0.05)',
+                    color: 'rgba(200, 200, 200, 0.4)',
                     lineWidth: 1
                 }
             }],
             yAxes: [{
                 gridLines: {
-                    color: 'rgba(200, 200, 200, 0.08)',
+                    color: 'rgba(200, 200, 200, 1.0)',
                     lineWidth: 1
                 }
             }]

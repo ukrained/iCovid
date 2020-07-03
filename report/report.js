@@ -7,8 +7,17 @@ $dead_chart = null;
 
 $(document).ready(function(){
     /* Hack for ZZZ hosting */
+    /*
+        <div style="text-align:center;font-size:11px;font-family:arial;background-color:black;color:white">
+            Ця сторінка розміщена безкоштовно на
+            <a style="color:grey" rel="nofollow" href="https://www.zzz.com.ua/">
+                zzz.com.ua
+            </a>,
+            якщо Ви власник цієї сторінки, Ви можете прибрати це повідомлення та отримати доступ до безлічі додаткових послуг та переваг при покращенні Вашого хостингу до PRO або VIP усього за 41.60 UAH.
+        </div>
+    */
     divs = document.body.getElementsByTagName("div")
-    if (divs[0] && divs[0].childElementCount == 1) {
+    if (divs[0] && divs[0].getElementsByTagName("a").length > 0) {
         document.body.removeChild(divs[0]);
     }
 

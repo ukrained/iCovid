@@ -549,3 +549,68 @@ th, td {
     height: 0;
     padding-bottom: 50%;
 }
+
+#help_table {
+    display: grid;
+    grid-gap: 2% 2%;
+    justify-content: space-evenly;
+    align-content: center;
+    /* border: 1px solid black; */
+    padding: 5px;
+    font-size: 14px;
+    line-height: 20px;
+    margin: 5px;
+}
+
+.ht_item {
+    display: flex;
+    /* border: 1px solid black; */
+    justify-content: space-evenly;
+}
+
+.logo_photo {
+    width: 198px;
+    height: 198px;
+    border-radius: 100%;
+    overflow: hidden;
+    margin: auto auto;
+}
+
+.logo_photo img {
+    width: 100%;
+    height: 100%;
+}
+
+.dev_item {
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    display: flex;
+    margin: 5px;
+    width: 100%;
+    padding: 5px 10px 5px 0px;
+    justify-content: left;
+    transition: 0.25s;
+    font-size: 12px;
+}
+
+.dev_item:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+.dev_photo {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    overflow: hidden;
+    margin: 0 10px 0 20px;
+}
+
+.dev_photo img {
+    width: 100%;
+    height: 100%;
+}
+
+.dev_info {
+    padding: 10px 5px;
+    text-align: justify;
+}

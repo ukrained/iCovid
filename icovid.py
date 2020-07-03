@@ -2,8 +2,8 @@
 
 # metadata
 __title__ = 'iCovid Monitoring Utility'
-__version__ = '1.3.4'
-__release__ = '02 Jul 2020'
+__version__ = '1.3.8'
+__release__ = '04 Jul 2020'
 __author__ = 'Alex Viytiv'
 
 # modules
@@ -312,7 +312,7 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 640 410', 'ViewBoxLineSz': 0.7,
                   'Population': 43762985, 'Area': 603628,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 4000, 'Regions': {}}
+                  'Peak': 6000, 'Regions': {}}
 
         config = self.__upd_ukr_total(config)
         config = self.__upd_ukr_regions(config)
@@ -451,7 +451,8 @@ class iCovid (iCovidBase):
                         'https://portal.lviv.ua/news/2020/06/29/koronavirus-na-lvivshchyni-115-novykh-khvorykh-oduzhaly-bilshe-700-liudej',
                         'https://portal.lviv.ua/news/2020/06/30/covid-19-na-lvivshchyni-plius-143-novykh-khvorykh',
                         'https://portal.lviv.ua/news/2020/07/01/koronavirus-na-lvivshchyni-za-dobu-143-novykh-khvorykh',
-                        'https://portal.lviv.ua/news/2020/07/02/covid-19-na-lvivshchyni-za-dobu-vyiavyly-152-khvorykh']
+                        'https://portal.lviv.ua/news/2020/07/02/covid-19-na-lvivshchyni-za-dobu-vyiavyly-152-khvorykh',
+                        'https://portal.lviv.ua/news/2020/07/03/u-lvovi-3100-khvorykh-na-koronavirus']
 
         ''' Commented due to manual updates
         page = self._web_request(tested_links[0])
@@ -459,7 +460,7 @@ class iCovid (iCovidBase):
         '''
 
         # manual update
-        config['Tested'] = 33197  # int(''.join(tested_p.text.split()[7:9]))
+        config['Tested'] = 34250  # int(''.join(tested_p.text.split()[7:9]))
 
         return config
 
@@ -499,27 +500,27 @@ class iCovid (iCovidBase):
 
         # manual update
         config['Regions'] = {
-                "Бродівський район": 56,
-                "Буський район": 44,
-                "Городоцький район": 170,
-                "Дрогобицький район": 96,  # Борислав, Стебник, Дрогобич, Трускавець
+                "Бродівський район": 59,
+                "Буський район": 51,
+                "Городоцький район": 184,
+                "Дрогобицький район": 98,  # Борислав, Стебник, Дрогобич, Трускавець
                 "Жидачівський район": 50,
-                "Жовківський район": 331,
+                "Жовківський район": 337,
                 "Золочівський район": 38,
-                "Кам'янка-Бузький район": 191,
-                "Миколаївський район": 160,  # Новий Розділ
-                "Мостиський район": 43,
-                "Перемишлянський район": 75,
-                "Пустомитівський район": 570,
-                "Радехівський район": 24,
-                "Самбірський район": 44,  # Самбір
+                "Кам'янка-Бузький район": 194,
+                "Миколаївський район": 173,  # Новий Розділ
+                "Мостиський район": 42,
+                "Перемишлянський район": 81,
+                "Пустомитівський район": 579,
+                "Радехівський район": 25,
+                "Самбірський район": 48,  # Самбір
                 "Сколівський район": 16,
-                "Сокальський район": 224,  # Червоноград
+                "Сокальський район": 227,  # Червоноград
                 "Старосамбірський район": 7,
-                "Стрийський район": 85,  # Моршин, Стрий
+                "Стрийський район": 87,  # Моршин, Стрий
                 "Турківський район": 42,
-                "Яворівський район": 412,
-                "м. Львів": 3041
+                "Яворівський район": 444,
+                "м. Львів": 3100
             }
 
         return config
@@ -529,7 +530,7 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 250 800', 'ViewBoxLineSz': 1.0,
                   'Population': 8638917, 'Area': 20770,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 6000, 'Regions': {},
+                  'Peak': 8000, 'Regions': {},
                   'vii': '☣️ Дані з регіонів Ізраїлю відсутні у відкритому доступі.<br><br>👉 Публікація останніх відкритих даних відбулась 30 квітня 2020 року.<br><br>👉 Регіональний розподіл виконаний рівномірно на основі розподілу кількості населення у регіонах.'}
 
         # https://data.gov.il/dataset/covid-19/resource/d07c0771-01a8-43b2-96cc-c6154e7fa9bd
@@ -632,7 +633,7 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 650 600', 'ViewBoxLineSz': 0.8,
                   'Population': 37851327, 'Area': 312679,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 4000, 'Regions': {}}
+                  'Peak': 6000, 'Regions': {}}
 
         config = self.__upd_pol_total(config)
         config = self.__upd_pol_regions(config)
@@ -707,7 +708,7 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 1250 800', 'ViewBoxLineSz': 0.8,
                   'Population': 145927292, 'Area': 17098246,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 8000, 'Regions': {}}
+                  'Peak': 10000, 'Regions': {}}
 
         config = self.__upd_rus_total(config)
         config = self.__upd_rus_regions(config)
@@ -1405,7 +1406,10 @@ class iCovid (iCovidBase):
                      './report/report.css',
                      './report/report.js',
                      './report/virus.png',
-                     './report/gear.png']
+                     './report/gear.png',
+                     './report/vyrij_logo.png',
+                     './report/oleksandr.png',
+                     './report/dmytro.png']
 
         # copy files
         for wfile in web_files:
@@ -1424,10 +1428,10 @@ def main():
     covid = iCovid(debug=args.debug)
     covid.update()
 
+    print(covid)
+
     if args.web_update:
         covid.webpage_update('covidinfo.zzz.com.ua')
-
-    print(covid)
 
 
 if __name__ == '__main__':

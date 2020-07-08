@@ -1483,7 +1483,15 @@ class iCovid (iCovidBase):
                      './report/images/virus.png',
                      './report/images/dmytro.png',
                      './report/images/oleksandr.png',
-                     './report/images/vyrij_logo.png']
+                     './report/images/vyrij_logo.png',
+                     './report/flags/flag_default.jpg',
+                     './report/flags/flag_ukr.jpg',
+                     './report/flags/flag_ulv.jpg',
+                     './report/flags/flag_isr.jpg',
+                     './report/flags/flag_pol.jpg',
+                     './report/flags/flag_rus.jpg',
+                     './report/flags/flag_hug.jpg',
+                     './report/flags/flag_rom.jpg']
 
         # copy files
         for wfile in web_files:

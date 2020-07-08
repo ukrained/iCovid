@@ -2,8 +2,8 @@
 
 # metadata
 __title__ = 'iCovid Monitoring Utility'
-__version__ = '1.3.8'
-__release__ = '04 Jul 2020'
+__version__ = '1.4.3'
+__release__ = '08 Jul 2020'
 __author__ = 'Alex Viytiv'
 
 # modules
@@ -250,7 +250,16 @@ class iCovidBase:
         :param url: URL to webpage
         :return: 'utf-8'-encoded HTML page
         '''
-        html = requests.get(url, headers=headers).text
+        try:
+            html = requests.get(url, headers=headers).text
+        except Exception:
+            self.logger.warning('Недійсний сертифікат сервера "{}"'.format(url))
+            if not self.logger.approve('Не перевіряти сертифікат'):
+                self.logger.critical('Помилка отримання даних')
+                self.__auto_save = False
+                exit(1)
+
+            html = requests.get(url, headers=headers, verify=False).text
 
         return html  # .decode('utf-8')
 
@@ -312,7 +321,9 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 640 410', 'ViewBoxLineSz': 0.7,
                   'Population': 43762985, 'Area': 603628,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 6000, 'Regions': {}}
+                  'Peak': 6000, 'Description': '', 'Regions': {}}
+
+        config['Description'] = 'Розташована в Східній та частково в Центральній Європі, у південно-західній частині Східноєвропейської рівнини.<br><br>Держава-правонаступниця УНР, Гетьманщини, Королівства Руського та Київської Русі.<br><br>Найбільша за площею країна з тих, чия територія повністю лежить у Європі.'
 
         config = self.__upd_ukr_total(config)
         config = self.__upd_ukr_regions(config)
@@ -398,8 +409,10 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 1300 1300', 'ViewBoxLineSz': 2,
                   'Population': 2529608, 'Area': 21833,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 500, 'Regions': {},
+                  'Peak': 1000, 'Description': '', 'Regions': {},
                   'vii': '☣️ Нажаль, немає постійного джерела даних для Львівщини.<br><br>👉 Наразі дані оновлюються вручну щоденно.'}
+
+        config['Description'] = 'Одна з трьох областей історично-культурного регіону Галичина, частини Карпатського регіону.<br><br>Одна з найрозвиненіших областей в економічному, туристичному, культурному та науковому напрямках.'
 
         config = self.__upd_ulv_total(config)
         config = self.__upd_ulv_regions(config)
@@ -452,7 +465,14 @@ class iCovid (iCovidBase):
                         'https://portal.lviv.ua/news/2020/06/30/covid-19-na-lvivshchyni-plius-143-novykh-khvorykh',
                         'https://portal.lviv.ua/news/2020/07/01/koronavirus-na-lvivshchyni-za-dobu-143-novykh-khvorykh',
                         'https://portal.lviv.ua/news/2020/07/02/covid-19-na-lvivshchyni-za-dobu-vyiavyly-152-khvorykh',
-                        'https://portal.lviv.ua/news/2020/07/03/u-lvovi-3100-khvorykh-na-koronavirus']
+                        'https://portal.lviv.ua/news/2020/07/03/u-lvovi-3100-khvorykh-na-koronavirus',
+                        'https://portal.lviv.ua/news/2020/07/04/covid-19-na-lvivshchyni-karta-poshyrennia-rajonamy',
+                        'https://portal.lviv.ua/news/2020/07/05/koronavirus-za-dobu-na-lvivshchyni-vyiavyly-138-novykh-khvorykh',
+                        'https://portal.lviv.ua/news/2020/07/06/ponad-6300-vypadkiv-covid-19-na-lvivshchyni-karta-poshyrennia-rajonamy',
+                        'https://portal.lviv.ua/news/2020/07/07/covid-19-na-lvivshchyni-pidkhopyly-shche-144-liudyny',
+                        'https://portal.lviv.ua/news/2020/07/08/covid-19-na-lvivshchyni-pidtverdyly-u-shche-117-liudej',
+                        'http://tvoemisto.tv/covid-19-lviv/',  # 08 Jul 2020
+                        '']
 
         ''' Commented due to manual updates
         page = self._web_request(tested_links[0])
@@ -460,7 +480,7 @@ class iCovid (iCovidBase):
         '''
 
         # manual update
-        config['Tested'] = 34250  # int(''.join(tested_p.text.split()[7:9]))
+        config['Tested'] = 39445  # int(''.join(tested_p.text.split()[7:9]))
 
         return config
 
@@ -501,26 +521,26 @@ class iCovid (iCovidBase):
         # manual update
         config['Regions'] = {
                 "Бродівський район": 59,
-                "Буський район": 51,
-                "Городоцький район": 184,
-                "Дрогобицький район": 98,  # Борислав, Стебник, Дрогобич, Трускавець
-                "Жидачівський район": 50,
-                "Жовківський район": 337,
-                "Золочівський район": 38,
-                "Кам'янка-Бузький район": 194,
-                "Миколаївський район": 173,  # Новий Розділ
-                "Мостиський район": 42,
-                "Перемишлянський район": 81,
-                "Пустомитівський район": 579,
+                "Буський район": 53,
+                "Городоцький район": 190 + 13,
+                "Дрогобицький район": 104 + 3,  # Борислав, Стебник, Дрогобич, Трускавець
+                "Жидачівський район": 61 + 1,
+                "Жовківський район": 349 + 3,
+                "Золочівський район": 40,
+                "Кам'янка-Бузький район": 213 + 3,
+                "Миколаївський район": 193 + 10,  # Новий Розділ
+                "Мостиський район": 46 + 1,
+                "Перемишлянський район": 90,
+                "Пустомитівський район": 609 + 10,
                 "Радехівський район": 25,
-                "Самбірський район": 48,  # Самбір
-                "Сколівський район": 16,
-                "Сокальський район": 227,  # Червоноград
-                "Старосамбірський район": 7,
-                "Стрийський район": 87,  # Моршин, Стрий
-                "Турківський район": 42,
-                "Яворівський район": 444,
-                "м. Львів": 3100
+                "Самбірський район": 61,  # Самбір
+                "Сколівський район": 19 + 2,
+                "Сокальський район": 231 + 2,  # Червоноград
+                "Старосамбірський район": 8,
+                "Стрийський район": 97,  # Моршин, Стрий
+                "Турківський район": 50,
+                "Яворівський район": 500 + 6,
+                "м. Львів": 3302 + 63
             }
 
         return config
@@ -530,8 +550,10 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 250 800', 'ViewBoxLineSz': 1.0,
                   'Population': 8638917, 'Area': 20770,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 8000, 'Regions': {},
+                  'Peak': 8000, 'Description': '', 'Regions': {},
                   'vii': '☣️ Дані з регіонів Ізраїлю відсутні у відкритому доступі.<br><br>👉 Публікація останніх відкритих даних відбулась 30 квітня 2020 року.<br><br>👉 Регіональний розподіл виконаний рівномірно на основі розподілу кількості населення у регіонах.'}
+
+        config['Description'] = 'Розташований на східному узбережжі Середземного моря. Незалежність проголошено 14 травня 1948 року (5 іяра 5708 року).<br><br>Ізраїль є єврейською державою. Упродовж трьох тисячоліть слово «Ізраїль» позначає Землю Ізраїльську (івр. אֶרֶץ יִשְׂרָאֵל‎, Е́рец-Їсрае́ль) і весь єврейський народ.<br><br>Джерелом назви слугує Книга Буття, де Яків, син Ісаака, після боротьби з ангелом Бога отримує ім\'я Ізраїль.'
 
         # https://data.gov.il/dataset/covid-19/resource/d07c0771-01a8-43b2-96cc-c6154e7fa9bd
         # https://data.gov.il/dataset/covid-19/resource/dcf999c1-d394-4b57-a5e0-9d014a62e046#collapse-endpoints
@@ -633,7 +655,9 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 650 600', 'ViewBoxLineSz': 0.8,
                   'Population': 37851327, 'Area': 312679,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 6000, 'Regions': {}}
+                  'Peak': 6000, 'Description': '', 'Regions': {}}
+
+        config['Description'] = 'Держава в Центральній Європі. За даними перепису населення, що відбувся у 2015 році, у країні проживало понад 38,5 мільйонів осіб.<br><br>Польща є п&apos;ятою за кількістю населення країною ЄС, дев&apos;ятою в Європі за площею та восьмою за населенням. Близько 61 % населення проживає в містах.'
 
         config = self.__upd_pol_total(config)
         config = self.__upd_pol_regions(config)
@@ -708,7 +732,9 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 1250 800', 'ViewBoxLineSz': 0.8,
                   'Population': 145927292, 'Area': 17098246,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 10000, 'Regions': {}}
+                  'Peak': 10000, 'Description': '', 'Regions': {}}
+
+        config['Description'] = 'Федеративна республіка у північній Євразії. Початки державності відносять до періоду Русі — середньовічної держави із центром в Києві, під час розпаду якої, її північно-східні провінції перейшли під владу Золотої Орди, а пізніше стали основою майбутньої Московської держави.<br><br>У березні 2014 року здійснила військову агресію проти України, анексувавши Крим та Севастополь. Веде гібридну війну на Донбасі з метою окупації України.'
 
         config = self.__upd_rus_total(config)
         config = self.__upd_rus_regions(config)
@@ -896,7 +922,9 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 630 400', 'ViewBoxLineSz': 0.7,
                   'Population': 9663123, 'Area': 93030,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 2000, 'Regions': {}}
+                  'Peak': 2000, 'Description': '', 'Regions': {}}
+
+        config['Description'] = 'Держава в центральній Європі. Державна мова — угорська, що є найбільш уживаною уральською мовою у світі.<br><br>Територія сучасної Угорщини століттями була заселена цілою низкою народів, включаючи кельтів, римлян, германських племен, гунів, західних слов&apos;ян та аварів. Країна має економіку з високим рівнем доходу.'
 
         config = self.__upd_hug_total(config)
         config = self.__upd_hug_regions(config)
@@ -906,19 +934,21 @@ class iCovid (iCovidBase):
     def __upd_hug_total(self, config):
         # news.google.com
         self.logger.normal(' - Збір загальних даних з koronavirus.gov.hu ..')
-        page = self._web_request('https://news.google.com/covid19/map?hl=uk&gl=UA&ceid=UA%3Auk&mid=%2Fm%2F03gj2')
-
-        total_info = self._html_get_node(page, './/tbody[@class="ppcUXd"]//tr')[1]
-        sick = total_info.xpath('.//td')[0].text.strip().replace('\xa0', '')
-        config['Sick'] = int(sick) if sick != '—' else 0
-
-        recv = total_info.xpath('.//td')[3].text.strip().replace('\xa0', '')
-        config['Recovered'] = int(recv) if sick != '—' else 0
-
-        dead = total_info.xpath('.//td')[4].text.strip().replace('\xa0', '')
-        config['Dead'] = int(dead) if sick != '—' else 0
-
         page = self._web_request('https://koronavirus.gov.hu/')
+
+        recv_pest = self._html_get_node(page, './/div[@id="api-gyogyult-pest"]')[0]
+        recv_videk = self._html_get_node(page, './/div[@id="api-gyogyult-videk"]')[0]
+        config['Recovered'] = int(recv_pest.text.replace(' ', '')) + int(recv_videk.text.replace(' ', ''))
+
+        sick_pest = self._html_get_node(page, './/div[@id="api-fertozott-pest"]')[0]
+        sick_videk = self._html_get_node(page, './/div[@id="api-fertozott-videk"]')[0]
+        quarantine = self._html_get_node(page, './/div[@id="api-karantenban"]')[0]
+        config['Sick'] = int(sick_pest.text.replace(' ', '')) + int(sick_videk.text.replace(' ', '')) + int(quarantine.text.replace(' ', '')) + config['Recovered']
+
+        dead_pest = self._html_get_node(page, './/div[@id="api-elhunyt-pest"]')[0]
+        dead_videk = self._html_get_node(page, './/div[@id="api-elhunyt-videk"]')[0]
+        config['Dead'] = int(dead_pest.text.replace(' ', '')) + int(dead_videk.text.replace(' ', ''))
+
         tested = self._html_get_node(page, './/div[@id="api-mintavetel"]')[0]
         config['Tested'] = int(tested.text.replace(' ', ''))
         return config
@@ -979,7 +1009,9 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '200 350 260 450', 'ViewBoxLineSz': 0.7,
                   'Population': 19251921, 'Area': 238397,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 4000, 'Regions': {}}
+                  'Peak': 4000, 'Description': '', 'Regions': {}}
+
+        config['Description'] = 'Держава на перехресті східної, центральної та південно-східної Європи.<br><br>Назва Romania походить від лат. romanus, що означає &quot;громадянин Риму&quot;. Перше відоме вживання цього звернення датується XVI ст. італійськими гуманістами, що подорожували Трансільванією, Богданією та Волощиною.<br><br>Переважна більшість населення самоідентифікують, як православні християнами і є носіями румунської мови.'
 
         config = self.__upd_rom_total(config)
         config = self.__upd_rom_regions(config)
@@ -1232,8 +1264,36 @@ class iCovid (iCovidBase):
 
             return data
 
+        def make_data_regs(country, today, yestd):
+            """ Function build data regs attribute
+
+            Args:
+                country (str): name of the country
+                today (str): today`s date
+                yestd (str): yesterday`s date
+
+            Returns:
+                str: data-regs attribute
+            """
+            data_regs = []
+            data_reg_tmpl = '"{}", "{}", "{}"'
+
+            today_data = self.db.get({'date': today, 'country': country})
+            yestd_data = self.db.get({'date': yestd, 'country': country})
+
+            for region in today_data['Regions']:
+                sick = today_data['Regions'].get(region, 0)
+                d_sick = sick - yestd_data['Regions'].get(region, sick)
+                data_regs.append([region, sick, d_sick])
+                #data_regs.append(data_reg_tmpl.format(region, sick, d_sick))
+
+            # sort regions by number of sick and format
+            data_regs = [data_reg_tmpl.format(*x) for x in sorted(data_regs, key=lambda x: int(x[1]), reverse=True)]
+
+            return '[{}]'.format(','.join(data_regs)).replace('\'', '&apos;')
+
         # define templates for complex nodes
-        total_tmpl = '{}<div id="total{}" title="{}" peak="{}" tested="{}" d_tested="{}" sick="{}" d_sick="{}" recovered="{}" d_recovered="{}" dead="{}" d_dead="{}" data-days=\'{}\' data-test=\'{}\' data-sick=\'{}\' data-recv=\'{}\' data-dead=\'{}\' style="display: none;"></div>\n'
+        total_tmpl = '{}<div id="total{}" title="{}" peak="{}" popl="{}" area="{}" dens="{}" desc="{}" data-regs=\'{}\' tested="{}" d_tested="{}" sick="{}" d_sick="{}" recovered="{}" d_recovered="{}" dead="{}" d_dead="{}" data-days=\'{}\' data-test=\'{}\' data-sick=\'{}\' data-recv=\'{}\' data-dead=\'{}\' style="display: none;"></div>\n'
         country_tmpl = \
             '            <div class="tab">\n' \
             '                <input type="radio" name="tabgroup" id="{0}" onclick="country_changed(\'{0}\')" autocomplete="off" {1}>\n' \
@@ -1261,8 +1321,9 @@ class iCovid (iCovidBase):
         checked = 'checked'
         tab = '    '
 
-        # get current date
+        # get current and yesterday dates
         curr_date = date.today().strftime("%d %b %Y")
+        yest_date = (date.today() - timedelta(days=1)).strftime("%d %b %Y")
 
         # upload paths for regions
         with open('./report/regions.map', 'r+') as fp:
@@ -1270,7 +1331,7 @@ class iCovid (iCovidBase):
 
         # get data for current date
         today_data = self.db.get({'date': curr_date})
-        yestd_data = self.db.get({'date': (date.today() - timedelta(days=1)).strftime("%d %b %Y")})
+        yestd_data = self.db.get({'date': yest_date})
 
         # stage 1 - date of latest data update
         updated = self.translate('eng', 'ukr', curr_date)
@@ -1284,6 +1345,9 @@ class iCovid (iCovidBase):
 
         # make default total data
         total = total_tmpl.format(tab * 2, '', default['Name'], default['Peak'],
+                                  default['Population'], default['Area'],
+                                  '{:.2f}'.format(default['Population'] / default['Area']),
+                                  default['Description'], make_data_regs(default['Name'], curr_date, yest_date),
                                   default['Tested'], default['Tested'] - y_default.get('Tested', 0),
                                   default['Sick'],   default['Sick'] - y_default.get('Sick', 0),
                                   default['Recovered'], default['Recovered'] - y_default.get('Recovered', 0),
@@ -1298,6 +1362,9 @@ class iCovid (iCovidBase):
 
             # stage 2 - prepare total info for the country
             total += total_tmpl.format(tab * 2, '_%s' % data['Code'], data['Name'], data['Peak'],
+                                       data['Population'], data['Area'],
+                                       '{:.2f}'.format(data['Population'] / data['Area']),
+                                       data['Description'], make_data_regs(data['Name'], curr_date, yest_date),
                                        data['Tested'], data['Tested'] - y_data.get('Tested', 0),
                                        data['Sick'], data['Sick'] - y_data.get('Sick', 0),
                                        data['Recovered'], data['Recovered'] - y_data.get('Recovered', 0),
@@ -1370,8 +1437,13 @@ class iCovid (iCovidBase):
         return (username, password)
 
     def _ftp_upload(self, srcfile):
+        def ftp_path(orig_path):
+            return orig_path.replace('./report/', '')
+
+        # upload the file via STOR command
         with open(srcfile, 'rb') as f:
-            self.ftp.storbinary('STOR %s' % os.path.basename(srcfile), f, 1024)
+            self.ftp.storbinary('STOR %s' % ftp_path(srcfile), f, 1024)
+
         self.logger.debug('Файл "%s" вивантажено' % srcfile)
 
     def webpage_update(self, server):
@@ -1403,13 +1475,15 @@ class iCovid (iCovidBase):
 
         # prepare copy list
         web_files = ['./report/index.html',
-                     './report/report.css',
-                     './report/report.js',
-                     './report/virus.png',
-                     './report/gear.png',
-                     './report/vyrij_logo.png',
-                     './report/oleksandr.png',
-                     './report/dmytro.png']
+                     './report/css/report.css',
+                     './report/js/report.js',
+                     './report/js/chart.min.js',
+                     './report/js/jquery.min.js',
+                     './report/images/gear.png',
+                     './report/images/virus.png',
+                     './report/images/dmytro.png',
+                     './report/images/oleksandr.png',
+                     './report/images/vyrij_logo.png']
 
         # copy files
         for wfile in web_files:

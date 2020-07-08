@@ -1,3 +1,7 @@
+
+/* --------------------------------------------------------------------------
+ * General styles
+ * -------------------------------------------------------------------------- */
 html {
     overflow-x: hidden;
     overflow-y: scroll;
@@ -108,6 +112,11 @@ p {
     line-height: normal;
     margin: 0;
 }
+
+
+/* --------------------------------------------------------------------------
+ * Panel and maps styles
+ * -------------------------------------------------------------------------- */
 
 #map {
     width: 100%;
@@ -291,6 +300,10 @@ th, td {
     border-radius: 5px;
 }
 
+
+/* --------------------------------------------------------------------------
+ * Countries tabs styles
+ * -------------------------------------------------------------------------- */
 .tabs {
 	position: relative;
     min-width: 10em;
@@ -354,6 +367,11 @@ th, td {
     font-family: 'Play', sans-serif;
     font-size: 16px;
 }
+
+
+/* --------------------------------------------------------------------------
+ * Notification styles
+ * -------------------------------------------------------------------------- */
 
 #notification {
     font-family: 'Play', sans-serif;
@@ -428,7 +446,9 @@ th, td {
 }
 
 
-/* NEW STYLES */
+/* --------------------------------------------------------------------------
+ * Modal styles
+ * -------------------------------------------------------------------------- */
 #modal {
     font-family: 'Play', sans-serif;
     font-size: 16px;
@@ -535,7 +555,10 @@ th, td {
     opacity: 1;
 }
 
-/* chart */
+
+/* --------------------------------------------------------------------------
+ * Chart styles
+ * -------------------------------------------------------------------------- */
 .line-chart {
     opacity: 1;
     max-width: 640px;
@@ -550,7 +573,11 @@ th, td {
     padding-bottom: 50%;
 }
 
-#help_table {
+
+/* --------------------------------------------------------------------------
+ * Help styles
+ * -------------------------------------------------------------------------- */
+.help_grid {
     display: grid;
     grid-gap: 2% 2%;
     justify-content: space-evenly;
@@ -562,7 +589,7 @@ th, td {
     margin: 5px;
 }
 
-.ht_item {
+.hg_item {
     display: flex;
     /* border: 1px solid black; */
     justify-content: space-evenly;
@@ -582,7 +609,7 @@ th, td {
 }
 
 .dev_item {
-    border: 1px solid rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(0, 0, 0, 0.1);
     border-radius: 10px;
     display: flex;
     margin: 5px;
@@ -594,6 +621,7 @@ th, td {
 }
 
 .dev_item:hover {
+    border: 1px solid rgba(0, 0, 0, 0.2);
     background-color: rgba(0, 0, 0, 0.1);
 }
 
@@ -613,4 +641,85 @@ th, td {
 .dev_info {
     padding: 10px 5px;
     text-align: justify;
+}
+
+
+/* --------------------------------------------------------------------------
+ * Details styles
+ * -------------------------------------------------------------------------- */
+ .details_grid {
+    display: grid;
+    /*grid-gap: 2px 5px;*/
+    justify-content: space-evenly;
+    align-content: center;
+    /* border: 1px solid black; */
+    font-size: 14px;
+    line-height: 20px;
+    margin: 5px;
+}
+
+.dt_item {
+    display: flex;
+    /* border: 1px solid black; */
+    justify-content: space-evenly;
+    margin: 10px auto;
+}
+
+.flag_photo {
+    width: 150px;
+    height: 100px;
+    border-radius: 20px;
+    overflow: hidden;
+    margin: 10px auto;
+}
+
+.flag_photo img {
+    width: 100%;
+    height: 100%;
+}
+
+.dti_param {
+    width: 180px;
+    line-height: 15px;
+    padding: 0 0 0 10px;
+}
+
+.dtip_name {
+    /*border: 1px solid rgba(0, 0, 0, 0.1);*/
+    /*background-color: rgba(176, 216, 255, 0.2);*/
+    padding-top: 8px;
+    border-radius: 2px;
+    font-size: 12px;
+}
+
+.dtip_value {
+    text-align: left;
+    padding: 0 15px;
+    line-height: 10px;
+    font-size: 14px;
+}
+
+#dtr_desc {
+    text-align: justify;
+    padding: 10px 5px;
+}
+
+#dtr_regions {
+    grid-template-columns: 60% 19% 19%;
+    margin: 10px 5px;
+}
+
+.dtrh_item {
+    line-height: 20px;
+    font-size: 14px;
+    background-color: rgba(213, 228, 255, 0.747);
+}
+
+.dtrh_item:hover {
+    background-color: rgb(213, 228, 255);
+}
+
+.dtrr_item {
+    padding: 0 10px;
+    line-height: 25px;
 }

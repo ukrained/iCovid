@@ -1,7 +1,7 @@
 # metadata
 __title__ = 'Common Utils Library'
-__version__ = '0.6.4[b]'
-__release__ = '01 May 2020'
+__version__ = '0.6.7[b]'
+__release__ = '08 Jul 2020'
 __author__ = 'Alex Viytiv'
 
 
@@ -70,7 +70,7 @@ class logLevel:
              TRACE: 'відстеження'}
 
     # color for each log level
-    colour = {CRITICAL: colour.bg.purple,
+    colour = {CRITICAL: colour.bg.red,
               ERROR: colour.fg.red,
               WARNING: colour.fg.orange,
               SUCCESS: colour.fg.green,
@@ -115,7 +115,7 @@ class logger:
         prefix = '[%s%s%s] ' % (logLevel.colour[lvl], logLevel.token[lvl],
                                 colour.NORMAL)
 
-        print(('' if raw else prefix) + msg, end=end)
+        print(('' if raw else prefix) + str(msg), end=end)
 
     def critical(self, msg):
         ''' Print critical level log '''
@@ -151,9 +151,9 @@ class logger:
         :param msg: user message
         :return: TRUE if approved, FALSE otherwise
         '''
-        resp = input('> {}? [{}/{}]'.format(msg,
-                                            'Y' if default else 'y',
-                                            'n' if default else 'N'))
+        resp = input('> {}? [{}/{}] '.format(msg,
+                                             'Y' if default else 'y',
+                                             'n' if default else 'N'))
         if resp in ['y', 'ye', 'yes']:
             return True
         elif resp in ['n', 'no']:

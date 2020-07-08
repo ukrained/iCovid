@@ -1,5 +1,6 @@
 $description = $(".description");
 $notification = -1;
+$modal_isopen = false;
 $test_chart = null;
 $sick_chart = null;
 $recv_chart = null;
@@ -27,24 +28,7 @@ $(document).ready(function(){
     }
 
     /* Initialize total data */
-    $('#rd_name').html($('#total').attr('title'))
-    $('#rd_test').html($('#total').attr('tested'))
-    $('#rd_sick').html($('#total').attr('sick'))
-    $('#rd_recv').html($('#total').attr('recovered'))
-    $('#rd_dead').html($('#total').attr('dead'))
-
-    $('#rd_test').attr('text', $('#total').attr('tested'))
-    $('#rd_sick').attr('text', $('#total').attr('sick'))
-    $('#rd_recv').attr('text', $('#total').attr('recovered'))
-    $('#rd_dead').attr('text', $('#total').attr('dead'))
-
-    $('#rd_test').attr('delta', $('#total').attr('d_tested'))
-    $('#rd_sick').attr('delta', $('#total').attr('d_sick'))
-    $('#rd_recv').attr('delta', $('#total').attr('d_recovered'))
-    $('#rd_dead').attr('delta', $('#total').attr('d_dead'))
-
-    /* Default peak value */
-    $('#rd_peak').html('👨🏻‍⚕️ ' + $('#total').attr('peak'));
+    country_changed('ukr');
 
     /* Welcome message */
     msg = 'Вітаємо!<br>На цій сторінці ви можете отримати коротку інформацію про поширення вірусу SARS-nCov-2 на теренах України та країн світу.<br><br>👉 Щоб отримати інформацію про певний регіон, наведіть на нього вказівник.<br><br>👉 Щоб побачити зміну кількості осіб відносно попередньої доби, наведіть на значення потрібного критерію.<br><br>👉 Щоб скопіювати дані, натисність на регіон чи на його назву у панелі даних.<br><br>Гарного вам дня!';
@@ -140,42 +124,62 @@ function country_changed(name) {
     node_id = '#total_' + name;
 
     if ($(node_id).length > 0) {
+        /* General information */
         $('#total').attr('title',     $(node_id).attr('title'));
         $('#total').attr('tested',    $(node_id).attr('tested'));
         $('#total').attr('sick',      $(node_id).attr('sick'));
         $('#total').attr('recovered', $(node_id).attr('recovered'));
         $('#total').attr('dead',      $(node_id).attr('dead'));
 
+        /* Delta per day */
         $('#total').attr('peak',        $(node_id).attr('peak'));
         $('#total').attr('d_tested',    $(node_id).attr('d_tested'));
         $('#total').attr('d_sick',      $(node_id).attr('d_sick'));
         $('#total').attr('d_recovered', $(node_id).attr('d_recovered'));
         $('#total').attr('d_dead',      $(node_id).attr('d_dead'));
 
+        /* Data for charts */
         $('#total').data('days', $(node_id).data('days'));
         $('#total').data('test', $(node_id).data('test'));
         $('#total').data('sick', $(node_id).data('sick'));
         $('#total').data('recv', $(node_id).data('recv'));
         $('#total').data('dead', $(node_id).data('dead'));
 
+        /* Data for details */
+        $('#total').data('regs', $(node_id).data('regs'));
+        $('#total').attr('popl', $(node_id).attr('popl'));
+        $('#total').attr('area', $(node_id).attr('area'));
+        $('#total').attr('dens', $(node_id).attr('dens'));
+        $('#total').attr('desc', $(node_id).attr('desc'));
+
     } else {
+        /* General information */
         $('#total').attr('title',     '—');
         $('#total').attr('tested',    '—');
         $('#total').attr('sick',      '—');
         $('#total').attr('recovered', '—');
         $('#total').attr('dead',      '—');
 
+        /* Delta per day */
         $('#total').attr('peak',        '—');
         $('#total').attr('d_tested',    '—');
         $('#total').attr('d_sick',      '—');
         $('#total').attr('d_recovered', '—');
         $('#total').attr('d_dead',      '—');
 
+        /* Data for charts */
         $('#total').data('days',   '[]');
         $('#total').data('test',   '[]');
         $('#total').data('sick',   '[]');
         $('#total').data('recv',   '[]');
         $('#total').data('dead',   '[]');
+
+        /* Data for details */
+        $('#total').data('regs', '[]');
+        $('#total').attr('popl', '—');
+        $('#total').attr('area', '—');
+        $('#total').attr('dens', '—');
+        $('#total').attr('desc', '—');
     }
 
     /* Initialize total data */
@@ -201,10 +205,43 @@ function country_changed(name) {
     $('#rd_peak').html('👨🏻‍⚕️ ' + $('#total').attr('peak'));
 
     /* Redraw all the charts */
-    redraw_chart('test');
-    redraw_chart('sick');
-    redraw_chart('recv');
-    redraw_chart('dead');
+    if ($modal_isopen) {
+        redraw_chart('test');
+        redraw_chart('sick');
+        redraw_chart('recv');
+        redraw_chart('dead');
+    }
+
+    /* Update region data */
+    update_region_details(name);
+}
+
+/* Update region details
+ * Update detailed information when country changed
+ */
+function update_region_details(name) {
+    /* Update general information */
+    $('#dtr_flag').attr('src', 'flags/flag_' + name + '.jpg');
+    $('#dtr_name').html($('#total').attr('title'));
+    $('#dtr_popl').html($('#total').attr('popl') + ' осіб');
+    $('#dtr_area').html($('#total').attr('area') + ' км<sup>2</sup>');
+    $('#dtr_dens').html($('#total').attr('dens') + ' людей на км<sup>2</sup>');
+    $('#dtr_desc').html($('#total').attr('desc'));
+
+    /* Update regions table */
+    regions_data = $("#total").data('regs');
+    dtr_regions = '<p class="dtrh_item">Регіон</p>' +
+                  '<p class="dtrh_item">Хворих</p>' +
+                  '<p class="dtrh_item">За добу</p>';
+
+    var regions_num = regions_data.length;
+    for (var i = 0; i < regions_num; i += 3) {
+        dtr_regions += '<p class="dtrr_item" style="text-align: left;">' + regions_data[i]   + '</p>' +
+                       '<p class="dtrr_item">' + regions_data[i+1] + '</p>' +
+                       '<p class="dtrr_item">' + regions_data[i+2] + '</p>';
+    }
+
+    $('#dtr_regions').html(dtr_regions);
 }
 
 /* Copy current region to clipboard.
@@ -277,9 +314,7 @@ function close_ntf() {
     $("#notification").css('display', 'none');
 }
 
-/* New code */
-
-/* draggable plugin */
+/* Draggable plugin */
 (function($) {
     $.fn.drags = function(opt) {
         opt = $.extend({ handle:"", cursor:"move" }, opt);
@@ -323,23 +358,28 @@ function close_ntf() {
 
 $('#modal').drags();
 
+/* Redraw dynamics chart for country */
 function redraw_chart(chart_name) {
     /* Create full name of chart */
     var full_chart_name = chart_name + '_chart';
 
     if (full_chart_name == 'test_chart' && $test_chart != null) {
+        console.log('Destroy test_chart');
         $test_chart.destroy();
     }
 
     if (full_chart_name == 'sick_chart' && $sick_chart != null) {
+        console.log('Destroy sick_chart');
         $sick_chart.destroy();
     }
 
     if (full_chart_name == 'recv_chart' && $recv_chart != null) {
+        console.log('Destroy recv_chart');
         $recv_chart.destroy();
     }
 
     if (full_chart_name == 'dead_chart' && $dead_chart != null) {
+        console.log('Destroy dead_chart');
         $dead_chart.destroy();
     }
 
@@ -350,6 +390,7 @@ function redraw_chart(chart_name) {
     gradient.addColorStop(0.5, 'rgba(255, 0, 0, 0.25)');
     gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
 
+    console.log(chart);
     var data  = {
         labels: $("#total").data('days'),
         datasets: [{
@@ -431,9 +472,12 @@ function redraw_chart(chart_name) {
     console.log('Redraw a chart ' + full_chart_name);
 }
 
+/* Opens modal window for additional information */
 function open_modal(name, content_id) {
     $('#mdl_head').html(name + '<span id="close_mdl" onclick="close_modal()">❌</span>');
     $('#mdl_content').html($('#' + content_id).html());
+
+    $('#modal').removeClass('hide');
 
     if (content_id == 'storage_dynamics') {
         /* Redraw charts */
@@ -443,11 +487,19 @@ function open_modal(name, content_id) {
         redraw_chart('dead');
     }
 
-    $('#modal').removeClass('hide');
     $('#modal').addClass('show');
+
+    /* Mark modal is opened */
+    $modal_isopen = true;
 }
 
+/* Close the modal window */
 function close_modal() {
     $('#modal').removeClass('show');
+
+    $('#mdl_content').html('');
+
     $('#modal').addClass('hide');
+    /* Mark modal is closed */
+    $modal_isopen = false;
 }

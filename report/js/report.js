@@ -225,7 +225,7 @@ function update_region_details(name) {
     $('#dtr_name').html($('#total').attr('title'));
     $('#dtr_popl').html($('#total').attr('popl') + ' осіб');
     $('#dtr_area').html($('#total').attr('area') + ' км<sup>2</sup>');
-    $('#dtr_dens').html($('#total').attr('dens') + ' людей на км<sup>2</sup>');
+    $('#dtr_dens').html($('#total').attr('dens') + ' людей/км<sup>2</sup>');
     $('#dtr_desc').html($('#total').attr('desc'));
 
     /* Update regions table */
@@ -235,10 +235,10 @@ function update_region_details(name) {
                   '<p class="dtrh_item">За добу</p>';
 
     var regions_num = regions_data.length;
-    for (var i = 0; i < regions_num; i += 3) {
-        dtr_regions += '<p class="dtrr_item" style="text-align: left;">' + regions_data[i]   + '</p>' +
-                       '<p class="dtrr_item">' + regions_data[i+1] + '</p>' +
-                       '<p class="dtrr_item">' + regions_data[i+2] + '</p>';
+    for (var i = 0; i < regions_num; i += 5) {
+        dtr_regions += '<p class="dtrr_item ' + regions_data[i+3] + '" style="text-align: left;">' + regions_data[i]   + '</p>' +
+                       '<p class="dtrr_item ' + regions_data[i+3] + '">' + regions_data[i+1] + '</p>' +
+                       '<p class="dtrr_item ' + regions_data[i+4] + '">' + regions_data[i+2] + '</p>';
     }
 
     $('#dtr_regions').html(dtr_regions);
@@ -364,22 +364,18 @@ function redraw_chart(chart_name) {
     var full_chart_name = chart_name + '_chart';
 
     if (full_chart_name == 'test_chart' && $test_chart != null) {
-        console.log('Destroy test_chart');
         $test_chart.destroy();
     }
 
     if (full_chart_name == 'sick_chart' && $sick_chart != null) {
-        console.log('Destroy sick_chart');
         $sick_chart.destroy();
     }
 
     if (full_chart_name == 'recv_chart' && $recv_chart != null) {
-        console.log('Destroy recv_chart');
         $recv_chart.destroy();
     }
 
     if (full_chart_name == 'dead_chart' && $dead_chart != null) {
-        console.log('Destroy dead_chart');
         $dead_chart.destroy();
     }
 
@@ -390,7 +386,6 @@ function redraw_chart(chart_name) {
     gradient.addColorStop(0.5, 'rgba(255, 0, 0, 0.25)');
     gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
 
-    console.log(chart);
     var data  = {
         labels: $("#total").data('days'),
         datasets: [{
@@ -468,8 +463,6 @@ function redraw_chart(chart_name) {
     if (full_chart_name == 'dead_chart') {
         $dead_chart = chartInstance;
     }
-
-    console.log('Redraw a chart ' + full_chart_name);
 }
 
 /* Opens modal window for additional information */
@@ -498,6 +491,7 @@ function close_modal() {
     $('#modal').removeClass('show');
 
     $('#mdl_content').html('');
+    $('#modal').scrollTop(0);
 
     $('#modal').addClass('hide');
     /* Mark modal is closed */

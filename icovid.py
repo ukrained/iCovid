@@ -2,8 +2,8 @@
 
 # metadata
 __title__ = 'iCovid Monitoring Utility'
-__version__ = '1.4.3'
-__release__ = '08 Jul 2020'
+__version__ = '1.4.8'
+__release__ = '09 Jul 2020'
 __author__ = 'Alex Viytiv'
 
 # modules
@@ -412,7 +412,7 @@ class iCovid (iCovidBase):
                   'Peak': 1000, 'Description': '', 'Regions': {},
                   'vii': '☣️ Нажаль, немає постійного джерела даних для Львівщини.<br><br>👉 Наразі дані оновлюються вручну щоденно.'}
 
-        config['Description'] = 'Одна з трьох областей історично-культурного регіону Галичина, частини Карпатського регіону.<br><br>Одна з найрозвиненіших областей в економічному, туристичному, культурному та науковому напрямках.'
+        config['Description'] = 'Одна з трьох областей історико-культурного регіону Галичина, частини Карпатського регіону.<br><br>Одна з найрозвиненіших областей в економічному, туристичному, культурному та науковому напрямках.'
 
         config = self.__upd_ulv_total(config)
         config = self.__upd_ulv_regions(config)
@@ -472,6 +472,7 @@ class iCovid (iCovidBase):
                         'https://portal.lviv.ua/news/2020/07/07/covid-19-na-lvivshchyni-pidkhopyly-shche-144-liudyny',
                         'https://portal.lviv.ua/news/2020/07/08/covid-19-na-lvivshchyni-pidtverdyly-u-shche-117-liudej',
                         'http://tvoemisto.tv/covid-19-lviv/',  # 08 Jul 2020
+                        'https://portal.lviv.ua/news/2020/07/09/za-dobu-na-lvivshchyni-119-novykh-infikuvan-covid-19',
                         '']
 
         ''' Commented due to manual updates
@@ -480,7 +481,7 @@ class iCovid (iCovidBase):
         '''
 
         # manual update
-        config['Tested'] = 39445  # int(''.join(tested_p.text.split()[7:9]))
+        config['Tested'] = 40739  # int(''.join(tested_p.text.split()[7:9]))
 
         return config
 
@@ -520,27 +521,27 @@ class iCovid (iCovidBase):
 
         # manual update
         config['Regions'] = {
-                "Бродівський район": 59,
-                "Буський район": 53,
-                "Городоцький район": 190 + 13,
-                "Дрогобицький район": 104 + 3,  # Борислав, Стебник, Дрогобич, Трускавець
-                "Жидачівський район": 61 + 1,
-                "Жовківський район": 349 + 3,
-                "Золочівський район": 40,
-                "Кам'янка-Бузький район": 213 + 3,
-                "Миколаївський район": 193 + 10,  # Новий Розділ
-                "Мостиський район": 46 + 1,
-                "Перемишлянський район": 90,
-                "Пустомитівський район": 609 + 10,
-                "Радехівський район": 25,
-                "Самбірський район": 61,  # Самбір
-                "Сколівський район": 19 + 2,
-                "Сокальський район": 231 + 2,  # Червоноград
-                "Старосамбірський район": 8,
-                "Стрийський район": 97,  # Моршин, Стрий
-                "Турківський район": 50,
-                "Яворівський район": 500 + 6,
-                "м. Львів": 3302 + 63
+                "Бродівський район": 59 + 0 + 0,
+                "Буський район": 53 + 0 + 2,
+                "Городоцький район": 190 + 13 + 1,
+                "Дрогобицький район": 104 + 3 + 1,  # Борислав, Стебник, Дрогобич, Трускавець
+                "Жидачівський район": 61 + 1 + 3,
+                "Жовківський район": 349 + 3 + 15,
+                "Золочівський район": 40 + 0 + 1,
+                "Кам'янка-Бузький район": 213 + 3 + 1,
+                "Миколаївський район": 193 + 10 + 10,  # Новий Розділ
+                "Мостиський район": 46 + 1 + 2,
+                "Перемишлянський район": 90 + 0 + 2,
+                "Пустомитівський район": 609 + 10 + 9,
+                "Радехівський район": 25 + 0 + 1,
+                "Самбірський район": 61 + 0 + 5,  # Самбір
+                "Сколівський район": 19 + 2 + 0,
+                "Сокальський район": 231 + 2 + 5,  # Червоноград
+                "Старосамбірський район": 8 + 0 + 0,
+                "Стрийський район": 97 + 0 + 11,  # Моршин, Стрий
+                "Турківський район": 50 + 0 + 3,
+                "Яворівський район": 500 + 6 + 3,
+                "м. Львів": 3302 + 63 + 43
             }
 
         return config
@@ -1276,7 +1277,7 @@ class iCovid (iCovidBase):
                 str: data-regs attribute
             """
             data_regs = []
-            data_reg_tmpl = '"{}", "{}", "{}"'
+            data_reg_tmpl = '"{}", "{}", "{}", "{}", "{}"'
 
             today_data = self.db.get({'date': today, 'country': country})
             yestd_data = self.db.get({'date': yestd, 'country': country})
@@ -1286,6 +1287,21 @@ class iCovid (iCovidBase):
                 d_sick = sick - yestd_data['Regions'].get(region, sick)
                 data_regs.append([region, sick, d_sick])
                 #data_regs.append(data_reg_tmpl.format(region, sick, d_sick))
+
+            # 5 zones coloured by unique colour
+            danger_color = "dtrr_danger{}"
+            min_sick = min([it[1] for it in data_regs])
+            sick_step = (max([it[1] for it in data_regs]) + 1 - min_sick) / 5
+
+            min_dsick = min([it[2] for it in data_regs])
+            dsick_step = (max([it[2] for it in data_regs]) + 1 - min_dsick) / 5
+
+            for reg in data_regs:
+                # depending of the value, region will have its colour
+                sick = danger_color.format(int((reg[1] - min_sick) // sick_step))
+                reg.append(sick)
+                delta_sick = danger_color.format(int((reg[2] - min_dsick) // dsick_step))
+                reg.append(delta_sick)
 
             # sort regions by number of sick and format
             data_regs = [data_reg_tmpl.format(*x) for x in sorted(data_regs, key=lambda x: int(x[1]), reverse=True)]
@@ -1345,7 +1361,8 @@ class iCovid (iCovidBase):
 
         # make default total data
         total = total_tmpl.format(tab * 2, '', default['Name'], default['Peak'],
-                                  default['Population'], default['Area'],
+                                  '{:,}'.format(default['Population']),
+                                  '{:,}'.format(default['Area']),
                                   '{:.2f}'.format(default['Population'] / default['Area']),
                                   default['Description'], make_data_regs(default['Name'], curr_date, yest_date),
                                   default['Tested'], default['Tested'] - y_default.get('Tested', 0),
@@ -1362,7 +1379,8 @@ class iCovid (iCovidBase):
 
             # stage 2 - prepare total info for the country
             total += total_tmpl.format(tab * 2, '_%s' % data['Code'], data['Name'], data['Peak'],
-                                       data['Population'], data['Area'],
+                                       '{:,}'.format(data['Population']),
+                                       '{:,}'.format(data['Area']),
                                        '{:.2f}'.format(data['Population'] / data['Area']),
                                        data['Description'], make_data_regs(data['Name'], curr_date, yest_date),
                                        data['Tested'], data['Tested'] - y_data.get('Tested', 0),

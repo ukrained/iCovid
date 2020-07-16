@@ -2,8 +2,8 @@
 
 # metadata
 __title__ = 'iCovid Monitoring Utility'
-__version__ = '1.4.8'
-__release__ = '09 Jul 2020'
+__version__ = '1.5.0'
+__release__ = '16 Jul 2020'
 __author__ = 'Alex Viytiv'
 
 # modules
@@ -11,6 +11,7 @@ import urllib.request
 import urllib.parse
 import requests
 import argparse
+import time
 import json
 import glob
 import ssl
@@ -300,21 +301,30 @@ class iCovid (iCovidBase):
         # update callbacks
         upd_cbs = [self._upd_ukr, self._upd_ulv, self._upd_isr, self._upd_pol,
                    self._upd_rus, self._upd_hug, self._upd_rom]
-
         # slovakia - https://korona.gov.sk/en/coronavirus-covid-19-in-the-slovak-republic-in-numbers/
 
         curr_date = datetime.now().strftime("%d %b %Y")
 
+        # run update data
         self.logger.normal('Оновлюємо дані ..')
+        start = time.time()
+
         for upd_cb in upd_cbs:
             try:
+                # try to update and measure duration
+                upd_start = time.time()
                 data = upd_cb()
                 self.db.update({'date': curr_date, 'country': data['Name']}, data)
-                self.logger.success('Дані з {} оновлені'.format(data['Name']))
+                upd_duration = time.time() - upd_start
+
+                self.logger.success('Дані з %s оновлені [%fс]' % (data['Name'], upd_duration))
             except Exception as e:
-                self.logger.error('Помилка при оновленні даних: {}'.format(upd_cb))
+                self.logger.error('Помилка при оновленні даних: %s' % upd_cb)
                 raise e
                 continue
+
+        duration = time.time() - start
+        self.logger.debug('Оновлення даних завершено [%fс]' % duration)
 
     def _upd_ukr(self):
         config = {'Name': 'Україна', 'Code': 'ukr',
@@ -397,10 +407,11 @@ class iCovid (iCovidBase):
         rows = self._html_get_node(page, './/div[@class="compact-table expand-table"]//table//tr')
         for row in rows:
             items = row.xpath('.//td')
-            if len(items) == 0:
+
+            if len(items) == 0 or len(items[0]) == 0:
                 continue
-            elif items[0].text in name_mapping:
-                config['Regions'][name_mapping.get(items[0].text, items[0].text)] = int(items[1].text)
+            if items[0][0].text in name_mapping:
+                config['Regions'][name_mapping.get(items[0][0].text, items[0][0].text)] = int(items[1].text)
 
         return config
 
@@ -427,9 +438,9 @@ class iCovid (iCovidBase):
         rows = self._html_get_node(page, './/div[@class="compact-table expand-table"]//table//tr')
         for row in rows:
             items = row.xpath('.//td')
-            if len(items) == 0:
+            if len(items) == 0 or len(items[0]) == 0:
                 continue
-            elif items[0].text == 'Львівська':
+            elif items[0][0].text == 'Львівська':
                 config['Sick'] = int(items[1].text)
                 config['Dead'] = int(items[3].text)
                 config['Recovered'] = int(items[5].text)
@@ -473,6 +484,13 @@ class iCovid (iCovidBase):
                         'https://portal.lviv.ua/news/2020/07/08/covid-19-na-lvivshchyni-pidtverdyly-u-shche-117-liudej',
                         'http://tvoemisto.tv/covid-19-lviv/',  # 08 Jul 2020
                         'https://portal.lviv.ua/news/2020/07/09/za-dobu-na-lvivshchyni-119-novykh-infikuvan-covid-19',
+                        'https://portal.lviv.ua/news/2020/07/10/koronavirus-na-lvivshchyny-karta-poshyrennia-po-rajonakh',
+                        'https://portal.lviv.ua/news/2020/07/11/koronavirus-na-lvivshchyni-vyiavleno-119-novykh-vypadkiv',
+                        'https://portal.lviv.ua/news/2020/07/12/na-lvivshchyni-covid-19-pidkhopyly-vzhe-ponad-sim-tysiach-osib',
+                        'https://portal.lviv.ua/news/2020/07/13/lviv-dali-lidyruie-v-oblasti-za-kilkistiu-khvorykh-na-covid-19',
+                        'https://portal.lviv.ua/news/2020/07/14/za-dobu-koronavirus-diahnostuvaly-147-meshkantsiam-lvivshchyny',
+                        'https://portal.lviv.ua/news/2020/07/15/de-na-lvivshchyni-najbilshe-khvoriiut-na-covid-19-karta-poshyrennia',
+                        'https://portal.lviv.ua/news/2020/07/16/koronavirus-na-lvivshchyni-majzhe-200-novykh-vypadkiv-za-dobu',
                         '']
 
         ''' Commented due to manual updates
@@ -481,7 +499,7 @@ class iCovid (iCovidBase):
         '''
 
         # manual update
-        config['Tested'] = 40739  # int(''.join(tested_p.text.split()[7:9]))
+        config['Tested'] = 47554  # int(''.join(tested_p.text.split()[7:9]))
 
         return config
 
@@ -521,27 +539,27 @@ class iCovid (iCovidBase):
 
         # manual update
         config['Regions'] = {
-                "Бродівський район": 59 + 0 + 0,
-                "Буський район": 53 + 0 + 2,
-                "Городоцький район": 190 + 13 + 1,
-                "Дрогобицький район": 104 + 3 + 1,  # Борислав, Стебник, Дрогобич, Трускавець
-                "Жидачівський район": 61 + 1 + 3,
-                "Жовківський район": 349 + 3 + 15,
-                "Золочівський район": 40 + 0 + 1,
-                "Кам'янка-Бузький район": 213 + 3 + 1,
-                "Миколаївський район": 193 + 10 + 10,  # Новий Розділ
-                "Мостиський район": 46 + 1 + 2,
-                "Перемишлянський район": 90 + 0 + 2,
-                "Пустомитівський район": 609 + 10 + 9,
-                "Радехівський район": 25 + 0 + 1,
-                "Самбірський район": 61 + 0 + 5,  # Самбір
-                "Сколівський район": 19 + 2 + 0,
-                "Сокальський район": 231 + 2 + 5,  # Червоноград
-                "Старосамбірський район": 8 + 0 + 0,
-                "Стрийський район": 97 + 0 + 11,  # Моршин, Стрий
-                "Турківський район": 50 + 0 + 3,
-                "Яворівський район": 500 + 6 + 3,
-                "м. Львів": 3302 + 63 + 43
+                "Бродівський район": 60,
+                "Буський район": 60,
+                "Городоцький район": 227,
+                "Дрогобицький район": 152,  # Борислав, Стебник, Дрогобич, Трускавець
+                "Жидачівський район": 75,
+                "Жовківський район": 398,
+                "Золочівський район": 58,
+                "Кам'янка-Бузький район": 256,
+                "Миколаївський район": 284,  # Новий Розділ
+                "Мостиський район": 65,
+                "Перемишлянський район": 99,
+                "Пустомитівський район": 700,
+                "Радехівський район": 31,
+                "Самбірський район": 90,  # Самбір
+                "Сколівський район": 24,
+                "Сокальський район": 269,  # Червоноград
+                "Старосамбірський район": 10,
+                "Стрийський район": 118,  # Моршин, Стрий
+                "Турківський район": 59,
+                "Яворівський район": 598,
+                "м. Львів": 3792
             }
 
         return config
@@ -551,7 +569,7 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 250 800', 'ViewBoxLineSz': 1.0,
                   'Population': 8638917, 'Area': 20770,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 8000, 'Description': '', 'Regions': {},
+                  'Peak': 10000, 'Description': '', 'Regions': {},
                   'vii': '☣️ Дані з регіонів Ізраїлю відсутні у відкритому доступі.<br><br>👉 Публікація останніх відкритих даних відбулась 30 квітня 2020 року.<br><br>👉 Регіональний розподіл виконаний рівномірно на основі розподілу кількості населення у регіонах.'}
 
         config['Description'] = 'Розташований на східному узбережжі Середземного моря. Незалежність проголошено 14 травня 1948 року (5 іяра 5708 року).<br><br>Ізраїль є єврейською державою. Упродовж трьох тисячоліть слово «Ізраїль» позначає Землю Ізраїльську (івр. אֶרֶץ יִשְׂרָאֵל‎, Е́рец-Їсрае́ль) і весь єврейський народ.<br><br>Джерелом назви слугує Книга Буття, де Яків, син Ісаака, після боротьби з ангелом Бога отримує ім\'я Ізраїль.'
@@ -571,14 +589,12 @@ class iCovid (iCovidBase):
         self.logger.normal(' - Збір загальних даних з worldometers.info ..')
         page = self._web_request('https://www.worldometers.info/coronavirus/')
 
-        data = None
         countries = self._html_get_node(page, './/table[@id="main_table_countries_today"]/tbody/tr')
         for country in countries:
             nodes = country.xpath('.//td//a')
 
-            # check if there is name of country and it is Poland
+            # check if there is name of country and it is Israel
             if len(nodes) > 0 and nodes[0].text == 'Israel':
-                data = country
                 break
 
         config['Sick'] = int(country.xpath('.//td')[2].text.replace(',', ''))
@@ -689,8 +705,8 @@ class iCovid (iCovidBase):
 
     def __upd_pol_regions(self, config):
         # news.google.com
-        self.logger.normal(' - Збір даних про регіони з news.google.com ..')
-        page = self._web_request('https://news.google.com/covid19/map?hl=uk&gl=UA&ceid=UA%3Auk&mid=%2Fm%2F05qhw')
+        self.logger.normal(' - Збір даних про регіони з www.gov.pl ..')
+        page = self._web_request('https://www.gov.pl/web/koronawirus/wykaz-zarazen-koronawirusem-sars-cov-2')
 
         # initial regions data
         initial = ['Мазовецьке воєводство', 'Сілезьке воєводство',
@@ -704,26 +720,31 @@ class iCovid (iCovidBase):
         config['Regions'] = {k: 0 for k in initial}
 
         # used to store data under better regions naming
-        name_mapping = {'Мазовецьке': 'Мазовецьке воєводство',
-                        'Шльонське воєводство': 'Сілезьке воєводство',
-                        'Нижньосілезьке': 'Нижньосілезьке воєводство',
-                        'Лодзький': 'Лодзьке воєводство',
-                        'Малопольське': 'Малопольське воєводство',
-                        'Куявсько-Поморське': 'Куявсько-Поморське воєводство',
-                        'Поморські': 'Поморське воєводство',
-                        'Опольске': 'Опольске воєводство',
-                        'Заходньопоморське воєводство': 'Західнопоморське воєводство',
-                        'Подкарпатське воєводство': 'Підкарпатське воєводство',
-                        'Вармінсько-Мазурське': 'Вармінсько-Мазурське воєводство',
-                        'Любуске': 'Любуське воєводство'}
+        name_mapping = {'mazowieckie': 'Мазовецьке воєводство',
+                        'śląskie': 'Сілезьке воєводство',
+                        'dolnośląskie': 'Нижньосілезьке воєводство',
+                        'łódzkie': 'Лодзьке воєводство',
+                        'małopolskie': 'Малопольське воєводство',
+                        'kujawsko-pomorskie': 'Куявсько-Поморське воєводство',
+                        'pomorskie': 'Поморське воєводство',
+                        'opolskie': 'Опольске воєводство',
+                        'zachodniopomorskie': 'Західнопоморське воєводство',
+                        'podkarpackie': 'Підкарпатське воєводство',
+                        'warmińsko-mazurskie': 'Вармінсько-Мазурське воєводство',
+                        'lubuskie': 'Любуське воєводство',
+                        'świętokrzyskie': 'Свентокшиське воєводство',
+                        'wielkopolskie': 'Великопольське воєводство',
+                        'podlaskie': 'Підляське воєводство',
+                        'lubelskie': 'Люблінське воєводство'}
 
         # get regions. skip first two general nodes
-        regions = self._html_get_node(page, './/tbody[@class="ppcUXd"]//tr')[2:]
+        regs_data = json.loads(self._html_get_node(page, './/pre[@id="registerData"]')[0].text)['data']
+        regions = [row.split(';') for row in regs_data.split('\n') if len(row.split(';')) > 1][2:]
         for region in regions:
-            reg = region.xpath('.//th//div//div')[0].text
+            reg = region[0]
             reg_name = name_mapping.get(reg, reg)
 
-            sick = region.xpath('.//td')[0].text.strip().replace('\xa0', '')
+            sick = int(region[1].replace(' ', ''))
             config['Regions'][reg_name] = int(sick) if sick != '—' else 0
 
         return config
@@ -749,10 +770,22 @@ class iCovid (iCovidBase):
         page = self._web_request('https://covid19.rosminzdrav.ru/wp-json/api/mapdata/')
         data = json.loads(page)['Items']
 
-        config['Tested'] = sum([it['Observations'] for it in data])
+        # config['Tested'] = sum([it['Observations'] for it in data])
         config['Sick'] = sum([it['Confirmed'] for it in data])
         config['Recovered'] = sum([it['Recovered'] for it in data])
         config['Dead'] = sum([it['Deaths'] for it in data])
+
+        page = self._web_request('https://www.worldometers.info/coronavirus/')
+
+        countries = self._html_get_node(page, './/table[@id="main_table_countries_today"]/tbody/tr')
+        for country in countries:
+            nodes = country.xpath('.//td//a')
+
+            # check if there is name of country and it is Russia
+            if len(nodes) > 0 and nodes[0].text == 'Russia':
+                break
+
+        config['Tested'] = int(country.xpath('.//td')[12].text.replace(',', ''))
 
         return config
 
@@ -1027,21 +1060,21 @@ class iCovid (iCovidBase):
         hdrs = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'}
 
         # get intial page to find out final link with tested persond data
-        page = self._web_request('http://www.mae.ro/node/51759', headers=hdrs)
-        links = self._html_get_node(page, './/div[@class="art"]//p//a')
+        page = self._web_request('https://stirioficiale.ro/informatii', headers=hdrs)
+        links = self._html_get_node(page, './/div[@class="flex-1 px-8 py-5"]//h1//a')
 
         # go through all available paragraphs and look for the link
         target_link = ''
         for link in links:
-            if link.attrib.get('title', '').startswith('Buletin informativ'):
-                target_link = 'http://www.mae.ro{}'.format(link.attrib['href'])
+            if 'BULETIN DE PRESĂ' in link.text:
+                target_link = link.attrib['href']
                 break
 
         if target_link:
             self.logger.debug('Цільове посилання: {} ..'.format(target_link))
             # get the page with tested persons quanity
             page = self._web_request(target_link, headers=hdrs)
-            paragraphs = self._html_get_node(page, './/div[@class="art"]//p')
+            paragraphs = self._html_get_node(page, './/div[@class="my-8 break-words rich-text"]//p')
             for p in paragraphs:
                 if p.text and p.text.strip().endswith('teste.'):
                     config['Tested'] = int(p.text.split()[10].replace('.', ''))
@@ -1459,10 +1492,12 @@ class iCovid (iCovidBase):
             return orig_path.replace('./report/', '')
 
         # upload the file via STOR command
+        start = time.time()
         with open(srcfile, 'rb') as f:
             self.ftp.storbinary('STOR %s' % ftp_path(srcfile), f, 1024)
+        duration = time.time() - start
 
-        self.logger.debug('Файл "%s" вивантажено' % srcfile)
+        self.logger.debug('Файл "%s" вивантажено [%fс]' % (srcfile, duration))
 
     def webpage_update(self, server):
         ''' Update web-page files through FTP server '''
@@ -1481,6 +1516,7 @@ class iCovid (iCovidBase):
             return
 
         # setup FTP connection
+        start = time.time()
         try:
             self.ftp.connect(server, 21)
             self.ftp.login(uname, upass)
@@ -1511,11 +1547,16 @@ class iCovid (iCovidBase):
                      './report/flags/flag_hug.jpg',
                      './report/flags/flag_rom.jpg']
 
+        duration = time.time() - start
+        self.logger.debug('Приєднано до FTP-сервера [%fс]' % duration)
+
         # copy files
+        start = time.time()
         for wfile in web_files:
             self._ftp_upload(wfile)
+        duration = time.time() - start
 
-        self.logger.success('Веб-сторінку "%s" оновлено' % server)
+        self.logger.success('Веб-сторінку "%s" оновлено [%fс]' % (server, duration))
 
 
 def main():

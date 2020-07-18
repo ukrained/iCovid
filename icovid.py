@@ -2,8 +2,8 @@
 
 # metadata
 __title__ = 'iCovid Monitoring Utility'
-__version__ = '1.5.0'
-__release__ = '16 Jul 2020'
+__version__ = '1.8.2'
+__release__ = '18 Jul 2020'
 __author__ = 'Alex Viytiv'
 
 # modules
@@ -331,9 +331,12 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 640 410', 'ViewBoxLineSz': 0.7,
                   'Population': 43762985, 'Area': 603628,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 6000, 'Description': '', 'Regions': {}}
+                  'Peak': 6000, 'Description': '', 'Cure': 2,
+                  'Regions': {}}
 
         config['Description'] = 'Розташована в Східній та частково в Центральній Європі, у південно-західній частині Східноєвропейської рівнини.<br><br>Держава-правонаступниця УНР, Гетьманщини, Королівства Руського та Київської Русі.<br><br>Найбільша за площею країна з тих, чия територія повністю лежить у Європі.'
+
+        # cure: https://www.president.gov.ua/news/ukrayina-rozpochinaye-klinichni-doslidzhennya-preparatu-sho-60777
 
         config = self.__upd_ukr_total(config)
         config = self.__upd_ukr_regions(config)
@@ -420,7 +423,8 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 1300 1300', 'ViewBoxLineSz': 2,
                   'Population': 2529608, 'Area': 21833,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 1000, 'Description': '', 'Regions': {},
+                  'Peak': 1000, 'Description': '', 'Cure': 0,
+                  'Regions': {},
                   'vii': '☣️ Нажаль, немає постійного джерела даних для Львівщини.<br><br>👉 Наразі дані оновлюються вручну щоденно.'}
 
         config['Description'] = 'Одна з трьох областей історико-культурного регіону Галичина, частини Карпатського регіону.<br><br>Одна з найрозвиненіших областей в економічному, туристичному, культурному та науковому напрямках.'
@@ -490,7 +494,9 @@ class iCovid (iCovidBase):
                         'https://portal.lviv.ua/news/2020/07/13/lviv-dali-lidyruie-v-oblasti-za-kilkistiu-khvorykh-na-covid-19',
                         'https://portal.lviv.ua/news/2020/07/14/za-dobu-koronavirus-diahnostuvaly-147-meshkantsiam-lvivshchyny',
                         'https://portal.lviv.ua/news/2020/07/15/de-na-lvivshchyni-najbilshe-khvoriiut-na-covid-19-karta-poshyrennia',
-                        'https://portal.lviv.ua/news/2020/07/16/koronavirus-na-lvivshchyni-majzhe-200-novykh-vypadkiv-za-dobu',
+                        'https://portal.lviv.ua/news/2020/07/16/ponad-7600-khvorykh-koronavirusom-na-lvivshchyni-karta-poshyrennia-rajonamy',
+                        'https://portal.lviv.ua/news/2020/07/17/na-lvivshchyni-vid-uskladnen-koronavirusu-pomerlo-shche-chetvero-liudej',
+                        'https://portal.lviv.ua/news/2020/07/18/na-lvivshchyni-koronavirus-pidkhopylo-shche-137-osib-pomerlo-chetvero-liudej',
                         '']
 
         ''' Commented due to manual updates
@@ -499,7 +505,7 @@ class iCovid (iCovidBase):
         '''
 
         # manual update
-        config['Tested'] = 47554  # int(''.join(tested_p.text.split()[7:9]))
+        config['Tested'] = 49158  # int(''.join(tested_p.text.split()[7:9]))
 
         return config
 
@@ -540,26 +546,26 @@ class iCovid (iCovidBase):
         # manual update
         config['Regions'] = {
                 "Бродівський район": 60,
-                "Буський район": 60,
-                "Городоцький район": 227,
-                "Дрогобицький район": 152,  # Борислав, Стебник, Дрогобич, Трускавець
-                "Жидачівський район": 75,
-                "Жовківський район": 398,
-                "Золочівський район": 58,
-                "Кам'янка-Бузький район": 256,
-                "Миколаївський район": 284,  # Новий Розділ
-                "Мостиський район": 65,
-                "Перемишлянський район": 99,
-                "Пустомитівський район": 700,
-                "Радехівський район": 31,
-                "Самбірський район": 90,  # Самбір
-                "Сколівський район": 24,
-                "Сокальський район": 269,  # Червоноград
+                "Буський район": 62,
+                "Городоцький район": 231,
+                "Дрогобицький район": 177,  # Борислав, Стебник, Дрогобич, Трускавець
+                "Жидачівський район": 84,
+                "Жовківський район": 437,
+                "Золочівський район": 71,
+                "Кам'янка-Бузький район": 291,
+                "Миколаївський район": 321,  # Новий Розділ
+                "Мостиський район": 71,
+                "Перемишлянський район": 114,
+                "Пустомитівський район": 728,
+                "Радехівський район": 32,
+                "Самбірський район": 100,  # Самбір
+                "Сколівський район": 29,
+                "Сокальський район": 281,  # Червоноград
                 "Старосамбірський район": 10,
-                "Стрийський район": 118,  # Моршин, Стрий
-                "Турківський район": 59,
-                "Яворівський район": 598,
-                "м. Львів": 3792
+                "Стрийський район": 125,  # Моршин, Стрий
+                "Турківський район": 72,
+                "Яворівський район": 626,
+                "м. Львів": 3979
             }
 
         return config
@@ -569,11 +575,13 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 250 800', 'ViewBoxLineSz': 1.0,
                   'Population': 8638917, 'Area': 20770,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 10000, 'Description': '', 'Regions': {},
+                  'Peak': 10000, 'Description': '', 'Cure': 3,
+                  'Regions': {},
                   'vii': '☣️ Дані з регіонів Ізраїлю відсутні у відкритому доступі.<br><br>👉 Публікація останніх відкритих даних відбулась 30 квітня 2020 року.<br><br>👉 Регіональний розподіл виконаний рівномірно на основі розподілу кількості населення у регіонах.'}
 
         config['Description'] = 'Розташований на східному узбережжі Середземного моря. Незалежність проголошено 14 травня 1948 року (5 іяра 5708 року).<br><br>Ізраїль є єврейською державою. Упродовж трьох тисячоліть слово «Ізраїль» позначає Землю Ізраїльську (івр. אֶרֶץ יִשְׂרָאֵל‎, Е́рец-Їсрае́ль) і весь єврейський народ.<br><br>Джерелом назви слугує Книга Буття, де Яків, син Ісаака, після боротьби з ангелом Бога отримує ім\'я Ізраїль.'
 
+        # cure: https://www.ukrinform.ua/rubric-world/2899971-vakcina-proti-koronavirusu-oglad-svitovih-rozrobok.html
         # https://data.gov.il/dataset/covid-19/resource/d07c0771-01a8-43b2-96cc-c6154e7fa9bd
         # https://data.gov.il/dataset/covid-19/resource/dcf999c1-d394-4b57-a5e0-9d014a62e046#collapse-endpoints
         # https://coronaupdates.health.gov.il/
@@ -672,9 +680,12 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 650 600', 'ViewBoxLineSz': 0.8,
                   'Population': 37851327, 'Area': 312679,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 6000, 'Description': '', 'Regions': {}}
+                  'Peak': 6000, 'Description': '', 'Cure': 1,
+                  'Regions': {}}
 
         config['Description'] = 'Держава в Центральній Європі. За даними перепису населення, що відбувся у 2015 році, у країні проживало понад 38,5 мільйонів осіб.<br><br>Польща є п&apos;ятою за кількістю населення країною ЄС, дев&apos;ятою в Європі за площею та восьмою за населенням. Близько 61 % населення проживає в містах.'
+
+        # cure: https://www.ukrinform.ua/rubric-world/2899971-vakcina-proti-koronavirusu-oglad-svitovih-rozrobok.html
 
         config = self.__upd_pol_total(config)
         config = self.__upd_pol_regions(config)
@@ -754,9 +765,12 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 1250 800', 'ViewBoxLineSz': 0.8,
                   'Population': 145927292, 'Area': 17098246,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 10000, 'Description': '', 'Regions': {}}
+                  'Peak': 10000, 'Description': '', 'Cure': 3,
+                  'Regions': {}}
 
         config['Description'] = 'Федеративна республіка у північній Євразії. Початки державності відносять до періоду Русі — середньовічної держави із центром в Києві, під час розпаду якої, її північно-східні провінції перейшли під владу Золотої Орди, а пізніше стали основою майбутньої Московської держави.<br><br>У березні 2014 року здійснила військову агресію проти України, анексувавши Крим та Севастополь. Веде гібридну війну на Донбасі з метою окупації України.'
+
+        # cure: https://www.aa.com.tr/en/latest-on-coronavirus-outbreak/russia-to-hold-phase-3-of-covid-19-vaccine-trial-abroad/1912694
 
         config = self.__upd_rus_total(config)
         config = self.__upd_rus_regions(config)
@@ -956,9 +970,14 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 630 400', 'ViewBoxLineSz': 0.7,
                   'Population': 9663123, 'Area': 93030,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 2000, 'Description': '', 'Regions': {}}
+                  'Peak': 2000, 'Description': '', 'Cure': 2,
+                  'Regions': {}}
 
         config['Description'] = 'Держава в центральній Європі. Державна мова — угорська, що є найбільш уживаною уральською мовою у світі.<br><br>Територія сучасної Угорщини століттями була заселена цілою низкою народів, включаючи кельтів, римлян, германських племен, гунів, західних слов&apos;ян та аварів. Країна має економіку з високим рівнем доходу.'
+
+        # cure: https://www.cfr.org/backgrounder/what-world-doing-create-covid-19-vaccine
+        # cure: https://hungarytoday.hu/avigan-drug-against-covid-19-to-be-tested-in-hungary/
+        # cure: https://dailynewshungary.com/hungarian-discovery-might-bring-a-breakthrough-in-curing-covid-19/
 
         config = self.__upd_hug_total(config)
         config = self.__upd_hug_regions(config)
@@ -1043,9 +1062,12 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '200 350 260 450', 'ViewBoxLineSz': 0.7,
                   'Population': 19251921, 'Area': 238397,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 4000, 'Description': '', 'Regions': {}}
+                  'Peak': 4000, 'Description': '', 'Cure': 1,
+                  'Regions': {}}
 
         config['Description'] = 'Держава на перехресті східної, центральної та південно-східної Європи.<br><br>Назва Romania походить від лат. romanus, що означає &quot;громадянин Риму&quot;. Перше відоме вживання цього звернення датується XVI ст. італійськими гуманістами, що подорожували Трансільванією, Богданією та Волощиною.<br><br>Переважна більшість населення самоідентифікують, як православні християнами і є носіями румунської мови.'
+
+        # cure: https://www.romania-insider.com/romania-european-system-coronavirus-vaccine
 
         config = self.__upd_rom_total(config)
         config = self.__upd_rom_regions(config)
@@ -1342,7 +1364,7 @@ class iCovid (iCovidBase):
             return '[{}]'.format(','.join(data_regs)).replace('\'', '&apos;')
 
         # define templates for complex nodes
-        total_tmpl = '{}<div id="total{}" title="{}" peak="{}" popl="{}" area="{}" dens="{}" desc="{}" data-regs=\'{}\' tested="{}" d_tested="{}" sick="{}" d_sick="{}" recovered="{}" d_recovered="{}" dead="{}" d_dead="{}" data-days=\'{}\' data-test=\'{}\' data-sick=\'{}\' data-recv=\'{}\' data-dead=\'{}\' style="display: none;"></div>\n'
+        total_tmpl = '{}<div id="total{}" title="{}" peak="{}" popl="{}" area="{}" dens="{}" desc="{}" cure="{}" data-regs=\'{}\' tested="{}" d_tested="{}" sick="{}" d_sick="{}" recovered="{}" d_recovered="{}" dead="{}" d_dead="{}" data-days=\'{}\' data-test=\'{}\' data-sick=\'{}\' data-recv=\'{}\' data-dead=\'{}\' style="display: none;"></div>\n'
         country_tmpl = \
             '            <div class="tab">\n' \
             '                <input type="radio" name="tabgroup" id="{0}" onclick="country_changed(\'{0}\')" autocomplete="off" {1}>\n' \
@@ -1397,7 +1419,8 @@ class iCovid (iCovidBase):
                                   '{:,}'.format(default['Population']),
                                   '{:,}'.format(default['Area']),
                                   '{:.2f}'.format(default['Population'] / default['Area']),
-                                  default['Description'], make_data_regs(default['Name'], curr_date, yest_date),
+                                  default['Description'], default['Cure'],
+                                  make_data_regs(default['Name'], curr_date, yest_date),
                                   default['Tested'], default['Tested'] - y_default.get('Tested', 0),
                                   default['Sick'],   default['Sick'] - y_default.get('Sick', 0),
                                   default['Recovered'], default['Recovered'] - y_default.get('Recovered', 0),
@@ -1415,7 +1438,8 @@ class iCovid (iCovidBase):
                                        '{:,}'.format(data['Population']),
                                        '{:,}'.format(data['Area']),
                                        '{:.2f}'.format(data['Population'] / data['Area']),
-                                       data['Description'], make_data_regs(data['Name'], curr_date, yest_date),
+                                       data['Description'], data['Cure'],
+                                       make_data_regs(data['Name'], curr_date, yest_date),
                                        data['Tested'], data['Tested'] - y_data.get('Tested', 0),
                                        data['Sick'], data['Sick'] - y_data.get('Sick', 0),
                                        data['Recovered'], data['Recovered'] - y_data.get('Recovered', 0),

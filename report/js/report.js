@@ -152,6 +152,9 @@ function country_changed(name) {
         $('#total').attr('dens', $(node_id).attr('dens'));
         $('#total').attr('desc', $(node_id).attr('desc'));
 
+        /* Data for cure timeline */
+        $('#total').attr('cure', $(node_id).attr('cure'));
+
     } else {
         /* General information */
         $('#total').attr('title',     '—');
@@ -180,6 +183,9 @@ function country_changed(name) {
         $('#total').attr('area', '—');
         $('#total').attr('dens', '—');
         $('#total').attr('desc', '—');
+
+        /* Data for cure timeline */
+        $('#total').attr('cure', '0');
     }
 
     /* Initialize total data */
@@ -214,6 +220,136 @@ function country_changed(name) {
 
     /* Update region data */
     update_region_details(name);
+
+    /* Update region statistics */
+    update_region_stats(name);
+}
+
+/* Function gives color for some percentage level
+ *
+ * percent - actual percentage
+ * less_better - flag tells that smaller percent is better
+ */
+function colorize_percent(percent, less_better=false) {
+    var r, g, b = 0;
+
+    percent = percent > 100.0 ? 100.0 : (percent < 0.0 ? 0.0 : percent);
+
+    /* Reverse percent value if less is better */
+    if (less_better) {
+        percent = 100.0 - percent;
+    }
+
+	if(percent < 50) {
+		r = 255;
+		g = Math.round(5.1 * percent);
+	} else {
+		g = 255;
+		r = Math.round(510 - 5.10 * percent);
+	}
+	var h = r * 0x10000 + g * 0x100 + b * 0x1;
+	return '#' + ('000000' + h.toString(16)).slice(-6);
+}
+
+function min_max_level_get(min_v, max_v, range, value)
+{
+    var step = (max_v - min_v) / range;
+    var level = Math.floor((value - min_v) / step);
+
+    level = level < 0 ? 0 : (level >= range ? range - 1 : level);
+
+    return level;
+}
+
+function update_region_stats(name)
+{
+    var i = 0;
+
+    tsiv_tested = (parseInt($('#total').attr('tested')) / parseInt($('#total').attr('popl').replace(/,/g, '')) * 100).toFixed(2);
+    $('#tsiv_tested').html(tsiv_tested + ' %');
+    // style="width: 13%; background-color: #f63a0f;"
+    $('#pb_tested').css('width', tsiv_tested + '%');
+    $('#pb_tested').css('background-color', colorize_percent(tsiv_tested));
+
+    tsiv_sick = (parseInt($('#total').attr('sick')) / parseInt($('#total').attr('popl').replace(/,/g, '')) * 100).toFixed(2);
+    $('#tsiv_sick').html(tsiv_sick + ' %');
+    $('#pb_sick').css('width', tsiv_sick + '%');
+    $('#pb_sick').css('background-color', colorize_percent(tsiv_sick, true));
+
+    tsiv_recovered = (parseInt($('#total').attr('recovered')) / parseInt($('#total').attr('sick')) * 100).toFixed(2);
+    $('#tsiv_recovered').html(tsiv_recovered + ' %');
+    $('#pb_recovered').css('width', tsiv_recovered + '%');
+    $('#pb_recovered').css('background-color', colorize_percent(tsiv_recovered));
+
+    tsiv_dead = (parseInt($('#total').attr('dead')) / parseInt($('#total').attr('sick')) * 100).toFixed(2);
+    $('#tsiv_dead').html(tsiv_dead + ' %');
+    $('#pb_dead').css('width', tsiv_dead + '%');
+    $('#pb_dead').css('background-color', colorize_percent(tsiv_dead, true));
+
+    // x = avg(today_sick / yestd_sick for 7 last days)
+    sick_data = $("#total").data('sick');
+    var sick_delta = new Array(sick_data.length - 1);
+    var delta_sum = 0;
+
+    // calculate deltas for last 14 days
+    for (i = 1; i < sick_data.length; i++) {
+        sick_delta[i - 1] = parseInt(sick_data[i]) - parseInt(sick_data[i - 1]);
+    }
+
+    // calculate progressive number of deltas
+    for (i = 1; i < sick_delta.length; i++) {
+        delta_sum += sick_data[i] / sick_data[i - 1];
+    }
+
+    psm_spread = (delta_sum / (sick_delta.length - 1)).toFixed(2);
+    danger_lvl = min_max_level_get(0.8, 1.2, 5, psm_spread);
+    $('#psm_spread').html(psm_spread + ' %');
+    $('#psi_spread').attr('class', 'ps_marker dtrr_danger' + danger_lvl);
+
+    // x = dead / sick
+    psm_death = (parseInt($('#total').attr('dead')) / parseInt($('#total').attr('sick')) * 100).toFixed(2);
+    danger_lvl = min_max_level_get(0, 20, 5, psm_death);
+    $('#psm_death').html(psm_death + ' %');
+    $('#psi_death').attr('class', 'ps_marker dtrr_danger' + danger_lvl);
+
+    // x = sick * dens
+    psm_area = Math.round(parseInt($('#total').attr('sick')) / parseFloat($('#total').attr('dens')));
+    danger_lvl = min_max_level_get(0, parseInt($('#total').attr('area').replace(/,/g, '')) * 0.01, 5, psm_area);
+    $('#psm_area').html(psm_area + ' км<sup>2</sup>');
+    $('#psi_area').attr('class', 'ps_marker dtrr_danger' + danger_lvl);
+
+    // x = sick * spread_coef ^ 30 days
+    psm_popl = Math.round((parseInt($('#total').attr('sick')) * Math.pow(psm_spread, 30)).toFixed(2));
+    danger_lvl = min_max_level_get(0, parseInt($('#total').attr('sick')) * 2, 5, psm_popl);
+    $('#psm_popl').html(psm_popl + ' людей');
+    $('#psi_popl').attr('class', 'ps_marker dtrr_danger' + danger_lvl);
+
+    // x = sick / popl * spread_coef
+    psm_infwo = (parseInt($('#total').attr('sick')) / parseInt($('#total').attr('popl').replace(/,/g, '')) * 100 * psm_spread).toFixed(3);
+    danger_lvl = min_max_level_get(0, 2, 5, psm_infwo);
+    $('#psm_infwo').html(psm_infwo + ' %');
+    $('#psi_infwo').attr('class', 'ps_marker dtrr_danger' + danger_lvl);
+
+    // x = sick / popl * spread_coef * protection_coef
+    protection_coef = 0.5;
+    psm_infwt = (parseInt($('#total').attr('sick')) / parseInt($('#total').attr('popl').replace(/,/g, '')) * psm_spread * protection_coef).toFixed(3);
+    danger_lvl = min_max_level_get(0, 1, 5, psm_infwt);
+    $('#psm_infwt').html(psm_infwt + ' %');
+    $('#psi_infwt').attr('class', 'ps_marker dtrr_danger' + danger_lvl);
+
+    /* Update cure development timeline */
+    cure_stage = parseInt($('#total').attr('cure'));
+    for (i = 1; i < 8; i++) {
+        if (i < cure_stage) {
+            $('#curedev_s' + i).attr('class', 'is-complete');
+        } else if (i == cure_stage) {
+            $('#curedev_s' + i).attr('class', 'is-active');
+        } else {
+            $('#curedev_s' + i).attr('class', '');
+        }
+    }
+
+
 }
 
 /* Update region details

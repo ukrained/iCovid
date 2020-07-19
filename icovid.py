@@ -2,8 +2,8 @@
 
 # metadata
 __title__ = 'iCovid Monitoring Utility'
-__version__ = '1.8.2'
-__release__ = '18 Jul 2020'
+__version__ = '1.8.3'
+__release__ = '19 Jul 2020'
 __author__ = 'Alex Viytiv'
 
 # modules
@@ -497,6 +497,7 @@ class iCovid (iCovidBase):
                         'https://portal.lviv.ua/news/2020/07/16/ponad-7600-khvorykh-koronavirusom-na-lvivshchyni-karta-poshyrennia-rajonamy',
                         'https://portal.lviv.ua/news/2020/07/17/na-lvivshchyni-vid-uskladnen-koronavirusu-pomerlo-shche-chetvero-liudej',
                         'https://portal.lviv.ua/news/2020/07/18/na-lvivshchyni-koronavirus-pidkhopylo-shche-137-osib-pomerlo-chetvero-liudej',
+                        'https://portal.lviv.ua/news/2020/07/19/za-dobu-na-lvivshchyni-vid-koronavirusu-oduzhalo-98-liudej',
                         '']
 
         ''' Commented due to manual updates
@@ -505,7 +506,7 @@ class iCovid (iCovidBase):
         '''
 
         # manual update
-        config['Tested'] = 49158  # int(''.join(tested_p.text.split()[7:9]))
+        config['Tested'] = 49704  # int(''.join(tested_p.text.split()[7:9]))
 
         return config
 
@@ -545,27 +546,27 @@ class iCovid (iCovidBase):
 
         # manual update
         config['Regions'] = {
-                "Бродівський район": 60,
+                "Бродівський район": 61,
                 "Буський район": 62,
-                "Городоцький район": 231,
-                "Дрогобицький район": 177,  # Борислав, Стебник, Дрогобич, Трускавець
+                "Городоцький район": 233,
+                "Дрогобицький район": 183,  # Борислав, Стебник, Дрогобич, Трускавець
                 "Жидачівський район": 84,
-                "Жовківський район": 437,
-                "Золочівський район": 71,
-                "Кам'янка-Бузький район": 291,
+                "Жовківський район": 443,
+                "Золочівський район": 78,
+                "Кам'янка-Бузький район": 300,
                 "Миколаївський район": 321,  # Новий Розділ
                 "Мостиський район": 71,
                 "Перемишлянський район": 114,
-                "Пустомитівський район": 728,
+                "Пустомитівський район": 734,
                 "Радехівський район": 32,
                 "Самбірський район": 100,  # Самбір
                 "Сколівський район": 29,
-                "Сокальський район": 281,  # Червоноград
+                "Сокальський район": 282,  # Червоноград
                 "Старосамбірський район": 10,
-                "Стрийський район": 125,  # Моршин, Стрий
-                "Турківський район": 72,
-                "Яворівський район": 626,
-                "м. Львів": 3979
+                "Стрийський район": 127,  # Моршин, Стрий
+                "Турківський район": 73,
+                "Яворівський район": 628,
+                "м. Львів": 4045
             }
 
         return config
@@ -1559,7 +1560,7 @@ class iCovid (iCovidBase):
                      './report/js/jquery.min.js',
                      './report/images/gear.png',
                      './report/images/virus.png',
-                     './report/images/dmytro.png',
+                     './report/images/eugenii.png',
                      './report/images/oleksandr.png',
                      './report/images/vyrij_logo.png',
                      './report/flags/flag_default.jpg',

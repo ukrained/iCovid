@@ -84,7 +84,7 @@
                     <div class="hg_item" style="display: flex;">
                         <div class="dev_item">
                             <div class="dev_photo">
-                                <img src="images/dmytro.png"/>
+                                <img src="images/eugenii.png"/>
                             </div>
                             <div class="dev_info">
                                 <p style="line-height: 25px;">Євгеній, 21 рік</p>
@@ -195,62 +195,62 @@
                         <!-- x = tested / population; more better -->
                         <p class="tsi_name">Перевірено</p>
                         <div class="ts_progress">
-                            <div id="pb_tested" class="ts_progress_bar" style="width: 13%; background-color: #f63a0f;"></div>
+                            <div id="pb_tested" class="ts_progress_bar" style="width: 0%;"></div>
                         </div>
-                        <p id="tsiv_tested" class="tsi_value">13 %</p>
+                        <p id="tsiv_tested" class="tsi_value">0 %</p>
 
                         <!-- x = sick / population; less better -->
                         <p class="tsi_name">Захворіли</p>
                         <div class="ts_progress">
-                            <div id="pb_sick" class="ts_progress_bar" style="width: 21%; background-color: #f2b01e;"></div>
+                            <div id="pb_sick" class="ts_progress_bar" style="width: 0%;"></div>
                         </div>
-                        <p id="tsiv_sick" class="tsi_value">21 %</p>
+                        <p id="tsiv_sick" class="tsi_value">0 %</p>
 
                         <!-- x = recovered / sick; more better -->
                         <p class="tsi_name">Одужали</p>
                         <div class="ts_progress">
-                            <div id="pb_recovered" class="ts_progress_bar" style="width: 42%; background-color: #f2d31b;"></div>
+                            <div id="pb_recovered" class="ts_progress_bar" style="width: 0%;"></div>
                         </div>
-                        <p id="tsiv_recovered" class="tsi_value">42 %</p>
+                        <p id="tsiv_recovered" class="tsi_value">0 %</p>
 
                         <!-- x = dead / sick; less better -->
                         <p class="tsi_name">Померли</p>
                         <div class="ts_progress">
-                            <div id="pb_dead" class="ts_progress_bar" style="width: 3%; background-color: #86e01e;"></div>
+                            <div id="pb_dead" class="ts_progress_bar" style="width: 0%;"></div>
                         </div>
-                        <p id="tsiv_dead" class="tsi_value">3 %</p>
+                        <p id="tsiv_dead" class="tsi_value">0 %</p>
                     </div>
                 </div>
                 <div class="stats">
                     <p class="section_head">Показники рівня захворювання</p>
                     <div class="pop_stats" style="grid-template-columns: 48% 48%">
                         <!-- x = avg(today_sick / yestd_sick for 7 last days) -->
-                        <div id="psi_spread" class="ps_marker" onclick="notify('👨🏻‍⚕️ Коефіцієнт поширення.<br><br>👉 Відображає середню кількість людей, що можуть бути заражені одним носієм хвороби.', 15000)">
+                        <div id="psi_spread" class="ps_marker" onclick="notify('❔ Коефіцієнт поширення.<br><br>Відображає середню кількість людей, що можуть будуть заражені одним носієм хвороби.', 15000)">
                             <div class="psm_name">Коефіцієнт поширення</div>
                             <div id="psm_spread" class="psm_value"></div>
                         </div>
                         <!-- x = dead / sick -->
-                        <div id="psi_death" class="ps_marker" onclick="notify('👨🏻‍⚕️ Ймовірність смерті.<br><br>👉 Параметр показує ймовірність того, що людина помре у разі зараження вірусом.', 15000)">
+                        <div id="psi_death" class="ps_marker" onclick="notify('❔ Ймовірність смерті.<br><br>Параметр вказує на ймовірність того, що людина помре у випадку зараження вірусом.', 15000)">
                             <div class="psm_name">Ймовірність смерті</div>
                             <div id="psm_death" class="psm_value"></div>
                         </div>
                         <!-- x = sick * dens -->
-                        <div id="psi_area" class="ps_marker" onclick="notify('👨🏻‍⚕️ Територія захворювання.<br><br>👉 Параметр відображає розмір території, на якій проживають особи із виявленим вірусом.', 15000)">
+                        <div id="psi_area" class="ps_marker" onclick="notify('❔ Територія захворювання.<br><br>Приблизний розмір території, де проживають особи із виявленим вірусом.', 15000)">
                             <div class="psm_name">Територія захворювання</div>
                             <div id="psm_area" class="psm_value"></div>
                         </div>
                         <!-- x = sick * spread_coef ^ 365 -->
-                        <div id="psi_popl" class="ps_marker" onclick="notify('👨🏻‍⚕️ Прогноз кількості хворих.<br><br>👉 Показник дає прогноз щодо тієї кількості хворих осіб, яка буде через 30 днів, за умови збереження тенденції поширення хвороби.', 15000)">
+                        <div id="psi_popl" class="ps_marker" onclick="notify('❔ Прогноз кількості хворих.<br><br>Прогнозована кількість хворих осіб через 30 днів за умови збереження тенденції поширення хвороби.', 15000)">
                             <div class="psm_name">Прогноз кількості хворих (30 днів)</div>
                             <div id="psm_popl" class="psm_value"></div>
                         </div>
                         <!-- x = sick / popl * spread_coef -->
-                        <div id="psi_infwo" class="ps_marker" onclick="notify('👨🏻‍⚕️ Ризик захворювання (без ЗІЗ).<br><br>👉 Ймовірність того, що ви будете заражені у даному регіоні без використання засобів індивідуального захисту.', 15000)">
+                        <div id="psi_infwo" class="ps_marker" onclick="notify('❔ Ризик захворювання (без ЗІЗ).<br><br>Ймовірність зараження у даному регіоні без використання засобів індивідуального захисту.', 15000)">
                             <div class="psm_name">Ризик захворювання (без ЗІЗ)</div>
                             <div id="psm_infwo" class="psm_value"></div>
                         </div>
                         <!-- x = sick / popl * spread_coef * protection_coef -->
-                        <div id="psi_infwt" class="ps_marker" onclick="notify('👨🏻‍⚕️ Ризик захворювання (із ЗІЗ).<br><br>👉 Ймовірність того, що ви будете заражені у даному регіоні за умови використання засобів індивідуального захисту.', 15000)">
+                        <div id="psi_infwt" class="ps_marker" onclick="notify('❔ Ризик захворювання (із ЗІЗ).<br><br>Ймовірність зараження у даному регіоні за умови використання засобів індивідуального захисту.', 15000)">
                             <div class="psm_name">Ризик захворювання (із ЗІЗ)</div>
                             <div id="psm_infwt" class="psm_value"></div>
                         </div>

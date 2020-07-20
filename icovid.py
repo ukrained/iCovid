@@ -2,8 +2,8 @@
 
 # metadata
 __title__ = 'iCovid Monitoring Utility'
-__version__ = '1.8.3'
-__release__ = '19 Jul 2020'
+__version__ = '1.9.8rc'
+__release__ = '20 Jul 2020'
 __author__ = 'Alex Viytiv'
 
 # modules
@@ -498,6 +498,7 @@ class iCovid (iCovidBase):
                         'https://portal.lviv.ua/news/2020/07/17/na-lvivshchyni-vid-uskladnen-koronavirusu-pomerlo-shche-chetvero-liudej',
                         'https://portal.lviv.ua/news/2020/07/18/na-lvivshchyni-koronavirus-pidkhopylo-shche-137-osib-pomerlo-chetvero-liudej',
                         'https://portal.lviv.ua/news/2020/07/19/za-dobu-na-lvivshchyni-vid-koronavirusu-oduzhalo-98-liudej',
+                        'https://portal.lviv.ua/news/2020/07/20/na-lvivshchyni-za-dobu-115-novykh-khvorykh-na-covid-19',
                         '']
 
         ''' Commented due to manual updates
@@ -506,7 +507,7 @@ class iCovid (iCovidBase):
         '''
 
         # manual update
-        config['Tested'] = 49704  # int(''.join(tested_p.text.split()[7:9]))
+        config['Tested'] = 50236  # int(''.join(tested_p.text.split()[7:9]))
 
         return config
 
@@ -546,27 +547,27 @@ class iCovid (iCovidBase):
 
         # manual update
         config['Regions'] = {
-                "Бродівський район": 61,
+                "Бродівський район": 62,
                 "Буський район": 62,
-                "Городоцький район": 233,
-                "Дрогобицький район": 183,  # Борислав, Стебник, Дрогобич, Трускавець
+                "Городоцький район": 241,
+                "Дрогобицький район": 188,  # Борислав, Стебник, Дрогобич, Трускавець
                 "Жидачівський район": 84,
-                "Жовківський район": 443,
+                "Жовківський район": 445,
                 "Золочівський район": 78,
-                "Кам'янка-Бузький район": 300,
-                "Миколаївський район": 321,  # Новий Розділ
-                "Мостиський район": 71,
-                "Перемишлянський район": 114,
-                "Пустомитівський район": 734,
+                "Кам'янка-Бузький район": 302,
+                "Миколаївський район": 327,  # Новий Розділ
+                "Мостиський район": 74,
+                "Перемишлянський район": 120,
+                "Пустомитівський район": 743,
                 "Радехівський район": 32,
-                "Самбірський район": 100,  # Самбір
+                "Самбірський район": 106,  # Самбір
                 "Сколівський район": 29,
                 "Сокальський район": 282,  # Червоноград
                 "Старосамбірський район": 10,
-                "Стрийський район": 127,  # Моршин, Стрий
-                "Турківський район": 73,
-                "Яворівський район": 628,
-                "м. Львів": 4045
+                "Стрийський район": 129,  # Моршин, Стрий
+                "Турківський район": 75,
+                "Яворівський район": 629,
+                "м. Львів": 4108
             }
 
         return config
@@ -1584,20 +1585,64 @@ class iCovid (iCovidBase):
         self.logger.success('Веб-сторінку "%s" оновлено [%fс]' % (server, duration))
 
 
+def help():
+    """ Function prints help to the user """
+    # sections separator
+    separator = ' {0:-^80}\n'.format('')
+
+    # prepare program head
+    head = '  {}{{}}[version {} | {}]\n'.format(__title__, __version__, __release__)
+    head = separator + head.format(' ' * (82 - len(head))) + separator
+
+    body = '  This tool provides information regarding COVID-19 disease spread. Here you can\n' + \
+           '  get different kinds of information about territories, countires, number of the\n' + \
+           '  performed tests, spreading coefficients and so on.\n' + \
+           '\n' + \
+           '  CLI tool provides you standard set of needed information. The simplest way to\n' + \
+           '  get the information is to run this tool:\n' + \
+           '      ./icovid.py\n' + \
+           '\n' + \
+           '  To get some debug information, run tool with \'-d\' option:\n' + \
+           '      ./icovid.py [-d|--debug]\n' + \
+           '\n' + \
+           '  To update a web page, run tool with \'-w\' option:\n' + \
+           '      ./icovid.py [-w|--web_update]\n' + \
+           '\n' + \
+           '  To get help, run tool with \'-h\' option:\n' + \
+           '      ./icovid.py [-h|--help]\n' + \
+           '\n'
+
+    foot = separator + \
+           '  For better usage experience visit our website: www.covidinfo.zzz.com.ua\n' + \
+           '  Your questions or proposals you can send to: sviytiv@gmail.com\n' + \
+           separator
+
+    text = head + body + foot
+    print(text)
+
+
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument('-w', '--web_update',  action='store_true')
     parser.add_argument('-d', '--debug', action='store_true')
+    parser.add_argument('-h', '--help', action='store_true')
 
     args = parser.parse_args()
 
-    covid = iCovid(debug=args.debug)
-    covid.update()
 
-    print(covid)
+    if args.help:
+        if args.debug or args.web_update:
+            parser.error('You are not allowed to use help with other options.')
 
-    if args.web_update:
-        covid.webpage_update('covidinfo.zzz.com.ua')
+        help()
+
+    else:
+        covid = iCovid(debug=args.debug)
+        covid.update()
+        print(covid)
+
+        if args.web_update:
+            covid.webpage_update('covidinfo.zzz.com.ua')
 
 
 if __name__ == '__main__':

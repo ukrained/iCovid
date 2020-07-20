@@ -2,19 +2,17 @@
 <html lang="ua">
     <head>
         <meta charset="UTF-8">
-        <title>COVID-19 </title>
+        <title>COVID-19</title>
         <meta http-equiv="content-type" content="text/html; charset=UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
         <!-- Links-->
-        <link rel="icon" href="virus.png">
-        <link rel="stylesheet" href="report.css">
-        <link href="https://fonts.googleapis.com/css2?family=Play&display=swap" rel="stylesheet">
-        <link href="https://fonts.googleapis.com/css2?family=Prata&display=swap" rel="stylesheet">
+        <link rel="icon" href="images/virus.png">
+        <link rel="stylesheet" href="css/report.css">
     </head>
     <body>
         <div style="margin-top: 50px;">
-            <h1 id="toptitle">◅ Інформація про поширення коронавірусу у світі ▻</p>
+            <h1 id="toptitle">◅ Інформація про поширення коронавірусу у світі ▻</h1>
             <p id="toptitle">📆 станом на {{ updated }} року</p>
         </div>
 
@@ -22,21 +20,275 @@
 {{ regions }}
         </div>
 
+        <div id="regiondetails">
+            <div id="detailspanel">
+                <div style="display: flex; justify-content: left;">
+                    <a id="settings" class="btn-settings" onclick="open_modal('Налаштування', 'storage_settings')"><img src="images/gear.png"></a>
+                    <a id="rd_peak"  class="btn-peak" onclick="notify('👨🏻‍⚕️ Поріг захворюваності.<br><br>Цей параметр відображає порогове значення захворюваності для даного регіону.', 15000)">👨🏻‍⚕️ ----</a>
+                </div>
+                <div style="display: flex; justify-content: right;">
+                    <a id="rd_details"  class="btn-more" onclick="open_modal('Деталі', 'storage_details')">Деталі 🧮</a>
+                    <a id="rd_dynamics" class="btn-more" onclick="open_modal('Динаміка', 'storage_dynamics')">Динаміка 📈</a>
+                    <a id="rd_stats"    class="btn-more" onclick="open_modal('Статистика', 'storage_stats')">Статистика 📊</a>
+                </div>
+            </div>
+        </div>
+
+        <div id="modal" autocomplete="off" >
+            <span id="mdl_head">Вікно <span id="close_mdl" onclick="close_modal()">❌</span></span>
+            <div id="mdl_content">
+            </div>
+            <div id="background"></div>
+        </div>
+
+        <div id='storage' style="display: none;">
+            <div id="storage_settings">
+                <div class="help_grid" style="grid-template-columns: 38% 58%;">
+                    <div class="hg_item">
+                        <div class="logo_photo">
+                            <img src="images/vyrij_logo.png"/>
+                        </div>
+                    </div>
+                    <div class="hg_item">
+                        <p style="text-align: justify; padding: 10px;">
+                            Привіт! 👋<br>
+                            <br>
+                            Ця мережева сторінка створена компанією "Вирій" 2020 року.
+                            Нашою метою є надання корисної інформації щодо поширення
+                            вірусу у деяких країнах світу, зокрема й в Україні.<br>
+                            <br>
+                            Нещодавно ми додали розділи "Деталі", "Динаміка" та
+                            "Статистика". Вони містять більше корисної для тебе
+                            інформації.<br>
+                            <br>
+                            Ми дякуємо тобі за користування нашим ресурсом
+                            та чекаємо на відгуки або пропозиції.<br>
+                            <br>
+                            З повагою,<br>
+                            Команда "Вирій"<br>
+                        </p>
+                    </div>
+                </div>
+                <div class="help_grid" style="grid-template-columns: 44% 44%; margin: 20px 0;">
+                    <div class="hg_item" style="display: flex;">
+                        <div class="dev_item">
+                            <div class="dev_photo">
+                                <img src="images/oleksandr.png"/>
+                            </div>
+                            <div class="dev_info">
+                                <p style="line-height: 25px;">Олександр, 22 роки</p>
+                                <p style="font-size: 12px;">Backend-розробник</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="hg_item" style="display: flex;">
+                        <div class="dev_item">
+                            <div class="dev_photo">
+                                <img src="images/eugenii.png"/>
+                            </div>
+                            <div class="dev_info">
+                                <p style="line-height: 25px;">Євгеній, 21 рік</p>
+                                <p style="font-size: 12px;">Frontend-розробник</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="help_grid" style="grid-template-columns: 44% 44%; margin: 20px 0;">
+                    <div class="hg_item" style="grid-column: 1 / 3;">
+                        <p>
+                            💌 Пишіть ваші запитання чи пропозиції за адресою 💌
+                            <br>
+                            <a href="mailto: sviytiv@gmail.com">
+                                sviytiv@gmail.com
+                            </a>
+                        </p>
+                    </div>
+                    <div class="hg_item" style="grid-column: 1 / 3; margin: 5px;">
+                        <p style="margin-top: 20px; font-size: 12px;">
+                            Версія {{ version }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div id="storage_details">
+                <div class="details_grid" style="grid-template-columns: 24% 30% 40%;">
+                    <div class="dt_item">
+                        <div class="flag_photo">
+                            <img id="dtr_flag" src="flags/flag_ukr.jpg"/>
+                        </div>
+                    </div>
+                    <div class="dt_item">
+                        <div style="text-align: justify;">
+                            <div class="dti_param">
+                                <div class="dtip_name">Край
+                                    <p id="dtr_name" class="dtip_value"></p>
+                                </div>
+                            </div>
+                            <div class="dti_param">
+                                <div class="dtip_name">Населення
+                                    <p id="dtr_popl" class="dtip_value"></p>
+                                </div>
+
+                            </div>
+                            <div class="dti_param">
+                                <div class="dtip_name">Площа
+                                    <p id="dtr_area" class="dtip_value"></p>
+                                </div>
+
+                            </div>
+                            <div class="dti_param">
+                                <div class="dtip_name">Щільність населення
+                                    <p id="dtr_dens" class="dtip_value"></sup></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="dt_item">
+                        <p id="dtr_desc">
+                        </p>
+                    </div>
+                </div>
+                <div id="dtr_regions" class="details_grid">
+                    <p class="dtrh_item">Регіон</p>
+                    <p class="dtrh_item">Хворих</p>
+                    <p class="dtrh_item">За добу</p>
+                </div>
+            </div>
+            <div id="storage_dynamics">
+                <p style="padding: 15px 3%; text-align: left;">
+                    🧪 Динаміка кількості перевірених осіб.
+                </p>
+                <div class="line-chart">
+                    <div class="aspect-ratio">
+                        <canvas id="test_chart"></canvas>
+                    </div>
+                </div>
+                <p style="padding: 15px 3%; text-align: left;">
+                    💉 Динаміка кількості хворих осіб.
+                </p>
+                <div class="line-chart">
+                    <div class="aspect-ratio">
+                        <canvas id="sick_chart"></canvas>
+                    </div>
+                </div>
+                <p style="padding: 15px 3%; text-align: left;">
+                    💖 Динаміка кількості осіб, що одужали.
+                </p>
+                <div class="line-chart">
+                    <div class="aspect-ratio">
+                        <canvas id="recv_chart"></canvas>
+                    </div>
+                </div>
+                <p style="padding: 15px 3%; text-align: left;">
+                    🖤 Динаміка кількості померлих осіб.
+                </p>
+                <div class="line-chart">
+                    <div class="aspect-ratio">
+                        <canvas id="dead_chart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div id="storage_stats">
+                <div class="stats">
+                    <p class="section_head" >Загальна характеристика населення</p>
+                    <div class="pop_stats" style="grid-template-columns: 15% 65% 20%;">
+                        <!-- x = tested / population; more better -->
+                        <p class="tsi_name">Перевірено</p>
+                        <div class="ts_progress">
+                            <div id="pb_tested" class="ts_progress_bar" style="width: 0%;"></div>
+                        </div>
+                        <p id="tsiv_tested" class="tsi_value">0 %</p>
+
+                        <!-- x = sick / population; less better -->
+                        <p class="tsi_name">Захворіли</p>
+                        <div class="ts_progress">
+                            <div id="pb_sick" class="ts_progress_bar" style="width: 0%;"></div>
+                        </div>
+                        <p id="tsiv_sick" class="tsi_value">0 %</p>
+
+                        <!-- x = recovered / sick; more better -->
+                        <p class="tsi_name">Одужали</p>
+                        <div class="ts_progress">
+                            <div id="pb_recovered" class="ts_progress_bar" style="width: 0%;"></div>
+                        </div>
+                        <p id="tsiv_recovered" class="tsi_value">0 %</p>
+
+                        <!-- x = dead / sick; less better -->
+                        <p class="tsi_name">Померли</p>
+                        <div class="ts_progress">
+                            <div id="pb_dead" class="ts_progress_bar" style="width: 0%;"></div>
+                        </div>
+                        <p id="tsiv_dead" class="tsi_value">0 %</p>
+                    </div>
+                </div>
+                <div class="stats">
+                    <p class="section_head">Показники рівня захворювання</p>
+                    <div class="pop_stats" style="grid-template-columns: 48% 48%">
+                        <!-- x = avg(today_sick / yestd_sick for 7 last days) -->
+                        <div id="psi_spread" class="ps_marker" onclick="notify('❔ Коефіцієнт поширення.<br><br>Відображає середню кількість людей, що можуть будуть заражені одним носієм хвороби.', 15000)">
+                            <div class="psm_name">Коефіцієнт поширення</div>
+                            <div id="psm_spread" class="psm_value"></div>
+                        </div>
+                        <!-- x = dead / sick -->
+                        <div id="psi_death" class="ps_marker" onclick="notify('❔ Ймовірність смерті.<br><br>Параметр вказує на ймовірність того, що людина помре у випадку зараження вірусом.', 15000)">
+                            <div class="psm_name">Ймовірність смерті</div>
+                            <div id="psm_death" class="psm_value"></div>
+                        </div>
+                        <!-- x = sick * dens -->
+                        <div id="psi_area" class="ps_marker" onclick="notify('❔ Територія захворювання.<br><br>Приблизний розмір території, де проживають особи із виявленим вірусом.', 15000)">
+                            <div class="psm_name">Територія захворювання</div>
+                            <div id="psm_area" class="psm_value"></div>
+                        </div>
+                        <!-- x = sick * spread_coef ^ 365 -->
+                        <div id="psi_popl" class="ps_marker" onclick="notify('❔ Прогноз кількості хворих.<br><br>Прогнозована кількість хворих осіб через 30 днів за умови збереження тенденції поширення хвороби.', 15000)">
+                            <div class="psm_name">Прогноз кількості хворих (30 днів)</div>
+                            <div id="psm_popl" class="psm_value"></div>
+                        </div>
+                        <!-- x = sick / popl * spread_coef -->
+                        <div id="psi_infwo" class="ps_marker" onclick="notify('❔ Ризик захворювання (без ЗІЗ).<br><br>Ймовірність зараження у даному регіоні без використання засобів індивідуального захисту.', 15000)">
+                            <div class="psm_name">Ризик захворювання (без ЗІЗ)</div>
+                            <div id="psm_infwo" class="psm_value"></div>
+                        </div>
+                        <!-- x = sick / popl * spread_coef * protection_coef -->
+                        <div id="psi_infwt" class="ps_marker" onclick="notify('❔ Ризик захворювання (із ЗІЗ).<br><br>Ймовірність зараження у даному регіоні за умови використання засобів індивідуального захисту.', 15000)">
+                            <div class="psm_name">Ризик захворювання (із ЗІЗ)</div>
+                            <div id="psm_infwt" class="psm_value"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="stats">
+                    <section>
+                        <p class="section_head">Розробка вакцини</p>
+
+                        <ol class="vcc_progress_bar">
+                            <li id="curedev_s1"><span>Наукові дослідження</span></li>
+                            <li id="curedev_s2"><span>Доклінічна розробка</span></li>
+                            <li id="curedev_s3"><span>Клінічна розробка</span></li>
+                            <li id="curedev_s4"><span>Юридичне налагодження</span></li>
+                            <li id="curedev_s5"><span>Масове виробництво</span></li>
+                            <li id="curedev_s6"><span>Розповсюдження</span></li>
+                            <li id="curedev_s7"><span>Вакцинування</span></li>
+                        </ol>
+                    </section>
+                </div>
+            </div>
+        </div>
+
         <div id="regioninfo">
-            <table id="regiondata" cellspacing="0" onclick="copy_info()">
+            <table id="regiondata" cellspacing="0">
                 <tr>
-                    <th class="thcell">Адміністративна одиниця 📌</th>
-                    <th class="thcell">Перевірені 📋</th>
-                    <th class="thcell">Хворі 💊</th>
-                    <th class="thcell">Одужали 💖</th>
-                    <th class="thcell">Померли 💢</th>
+                    <th class="thcell">📍 Адміністративна одиниця</th>
+                    <th class="thcell">🧪 Перевірені</th>
+                    <th class="thcell">💉 Хворі</th>
+                    <th class="thcell">💖 Одужали</th>
+                    <th class="thcell">🖤 Померли</th>
                 </tr>
                 <tr id="data_row">
-                    <td id="rd_name" class="trcell"></td>
-                    <td id="rd_test" class="trcell delta" d_dir="1" delta="" text=""></td>
-                    <td id="rd_sick" class="trcell delta" d_dir="0" delta="" text=""></td>
-                    <td id="rd_recv" class="trcell delta" d_dir="1" delta="" text=""></td>
-                    <td id="rd_dead" class="trcell delta" d_dir="0" delta="" text=""></td>
+                    <td id="rd_name" onclick="copy_info('all')" class="trcell"></td>
+                    <td id="rd_test" onclick="copy_info('test')" class="trcell delta" d_dir="1" delta="" text=""></td>
+                    <td id="rd_sick" onclick="copy_info('sick')" class="trcell delta" d_dir="0" delta="" text=""></td>
+                    <td id="rd_recv" onclick="copy_info('recv')" class="trcell delta" d_dir="1" delta="" text=""></td>
+                    <td id="rd_dead" onclick="copy_info('dead')" class="trcell delta" d_dir="0" delta="" text=""></td>
                 </tr>
             </table>
         </div>
@@ -53,8 +305,9 @@
         <div class="description"></div>
 {{ total }}
 
-        <script src='https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js'></script>
-        <script type="text/javascript" src="report.js"></script>
+        <script type="text/javascript" src='js/chart.min.js'></script>
+        <script type="text/javascript" src='js/jquery.min.js'></script>
+        <script type="text/javascript" src="js/report.js"></script>
     </body>
 
 </html>

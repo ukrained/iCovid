@@ -2,8 +2,8 @@
 
 # metadata
 __title__ = 'iCovid Monitoring Utility'
-__version__ = '1.0.0'
-__release__ = '20 May 2020'
+__version__ = '2.0.0'
+__release__ = '20 Jul 2020'
 __author__ = 'Alex Viytiv'
 
 # modules
@@ -11,6 +11,7 @@ import urllib.request
 import urllib.parse
 import requests
 import argparse
+import time
 import json
 import glob
 import ssl
@@ -202,6 +203,14 @@ class dbWorker:
 
         return self.__db[k_date]
 
+    def get_dates_list(self):
+        """ Function return list of known dates
+
+        Returns:
+            list: all the known dates
+        """
+        return self.__db.keys()
+
     def __is_db_sync(self):
         # TODO: Check DB is sync
         return True
@@ -242,7 +251,16 @@ class iCovidBase:
         :param url: URL to webpage
         :return: 'utf-8'-encoded HTML page
         '''
-        html = requests.get(url, headers=headers).text
+        try:
+            html = requests.get(url, headers=headers).text
+        except Exception:
+            self.logger.warning('Недійсний сертифікат сервера "{}"'.format(url))
+            if not self.logger.approve('Не перевіряти сертифікат'):
+                self.logger.critical('Помилка отримання даних')
+                self.__auto_save = False
+                exit(1)
+
+            html = requests.get(url, headers=headers, verify=False).text
 
         return html  # .decode('utf-8')
 
@@ -281,29 +299,44 @@ class iCovid (iCovidBase):
     def update(self):
         ''' Update latest data '''
         # update callbacks
-        upd_cbs = [self._upd_ukr, self._upd_isr, self._upd_pol, self._upd_rus,
-                   self._upd_hug, self._upd_rom]
-
+        upd_cbs = [self._upd_ukr, self._upd_ulv, self._upd_isr, self._upd_pol,
+                   self._upd_rus, self._upd_hug, self._upd_rom]
         # slovakia - https://korona.gov.sk/en/coronavirus-covid-19-in-the-slovak-republic-in-numbers/
 
         curr_date = datetime.now().strftime("%d %b %Y")
 
+        # run update data
         self.logger.normal('Оновлюємо дані ..')
+        start = time.time()
+
         for upd_cb in upd_cbs:
             try:
+                # try to update and measure duration
+                upd_start = time.time()
                 data = upd_cb()
                 self.db.update({'date': curr_date, 'country': data['Name']}, data)
-                self.logger.success('Дані з {} оновлені'.format(data['Name']))
+                upd_duration = time.time() - upd_start
+
+                self.logger.success('Дані з %s оновлені [%fс]' % (data['Name'], upd_duration))
             except Exception as e:
-                self.logger.error('Помилка при оновленні даних: {}'.format(upd_cb))
+                self.logger.error('Помилка при оновленні даних: %s' % upd_cb)
                 raise e
                 continue
 
+        duration = time.time() - start
+        self.logger.debug('Оновлення даних завершено [%fс]' % duration)
+
     def _upd_ukr(self):
-        config = {'Name': 'Україна', 'Code': 'ukr', 'ViewBoxSz': '0 0 640 410',
+        config = {'Name': 'Україна', 'Code': 'ukr',
+                  'ViewBoxSz': '0 0 640 410', 'ViewBoxLineSz': 0.7,
                   'Population': 43762985, 'Area': 603628,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
+                  'Peak': 6000, 'Description': '', 'Cure': 2,
                   'Regions': {}}
+
+        config['Description'] = 'Розташована в Східній та частково в Центральній Європі, у південно-західній частині Східноєвропейської рівнини.<br><br>Держава-правонаступниця УНР, Гетьманщини, Королівства Руського та Київської Русі.<br><br>Найбільша за площею країна з тих, чия територія повністю лежить у Європі.'
+
+        # cure: https://www.president.gov.ua/news/ukrayina-rozpochinaye-klinichni-doslidzhennya-preparatu-sho-60777
 
         config = self.__upd_ukr_total(config)
         config = self.__upd_ukr_regions(config)
@@ -313,14 +346,14 @@ class iCovid (iCovidBase):
     def __upd_ukr_total(self, config):
         # covid19.gov.ua
         self.logger.normal(' - Збір загальних даних з covid19.gov.ua ..')
-        page = self._web_request('https://covid19.gov.ua/')
+        page = self._web_request('https://covid19.gov.ua/en/')
 
         divs = self._html_get_node(page, './/div[@class="one-field light-box info-count"]')
         if len(divs) != 4:
             self.logger.error('Неочікуване число елементів - %d' % len(divs))
             exit(1)
 
-        for i, case in enumerate(['Tested', 'Sick', 'Recovered', 'Dead']):
+        for i, case in enumerate(['Tested', 'Sick', 'Dead', 'Recovered']):
             config[case] = int(divs[i].xpath('.//div')[0].text.strip().replace(' ', ''))
 
         return config
@@ -328,8 +361,8 @@ class iCovid (iCovidBase):
     def __upd_ukr_regions(self, config):
         # moz.gov.ua
         # detailed - https://index.minfin.com.ua/ua/reference/coronavirus/ukraine/
-        self.logger.normal(' - Збір даних про регіони з moz.gov.ua ..')
-        page = self._web_request('https://moz.gov.ua/article/news/operativna-informacija-pro-poshirennja-koronavirusnoi-infekcii-2019-ncov-1')
+        self.logger.normal(' - Збір даних про регіони з index.minfin.com.ua ..')
+        page = self._web_request('https://index.minfin.com.ua/ua/reference/coronavirus/ukraine/')
 
         # initial regions data
         initial = ["Автономна Республіка Крим", "Вінницька область",
@@ -347,22 +380,210 @@ class iCovid (iCovidBase):
                    "Черкаська область", "Чернігівська область"]
         config['Regions'] = {k: 0 for k in initial}
 
-        regions = self._html_get_node(page, './/div[@class="editor"]//ul')[0].xpath('.//li')
-        # regions = self._html_get_node(page, './/div[@class="editor"]//p')[2].text_content().split('\n')
-        for region in regions:
-            reg, sick = region.text.replace('\xa0', '').split(' — ')
-            # reg, sick = region.replace('\xa0', '').split(' — ')
-            config['Regions'][reg] = int(sick.strip().split()[0])
+        # used to store data under better regions naming
+        name_mapping = {"Вінницька": "Вінницька область",
+                        "Волинська": "Волинська область",
+                        "Дніпро­петровська": "Дніпропетровська область",
+                        "Донецька": "Донецька область",
+                        "Житомирська": "Житомирська область",
+                        "Закарпатська": "Закарпатська область",
+                        "Запорізька": "Запорізька область",
+                        "Івано-Франківська": "Івано-Франківська область",
+                        "Київська": "Київська область",
+                        "Кірово­градська": "Кіровоградська область",
+                        "Луганська": "Луганська область",
+                        "Львівська": "Львівська область",
+                        "Миколаївська": "Миколаївська область",
+                        "Одеська": "Одеська область",
+                        "Полтавська": "Полтавська область",
+                        "Рівненська": "Рівненська область",
+                        "Сумська": "Сумська область",
+                        "Тернопільська": "Тернопільська область",
+                        "Харківська": "Харківська область",
+                        "Херсонська": "Херсонська область",
+                        "Хмельницька": "Хмельницька область",
+                        "Черкаська": "Черкаська область",
+                        "Чернівецька": "Чернівецька область",
+                        "Чернігівська": "Чернігівська область",
+                        "м.Київ": "м. Київ"}
+
+        rows = self._html_get_node(page, './/div[@class="compact-table expand-table"]//table//tr')
+        for row in rows:
+            items = row.xpath('.//td')
+
+            if len(items) == 0 or len(items[0]) == 0:
+                continue
+            if items[0][0].text in name_mapping:
+                config['Regions'][name_mapping.get(items[0][0].text, items[0][0].text)] = int(items[1].text)
+
+        return config
+
+    def _upd_ulv(self):
+        config = {'Name': 'Львівщина', 'Code': 'ulv',
+                  'ViewBoxSz': '0 0 1300 1300', 'ViewBoxLineSz': 2,
+                  'Population': 2529608, 'Area': 21833,
+                  'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
+                  'Peak': 1000, 'Description': '', 'Cure': 0,
+                  'Regions': {},
+                  'vii': '☣️ Нажаль, немає постійного джерела даних для Львівщини.<br><br>👉 Наразі дані оновлюються вручну щоденно.'}
+
+        config['Description'] = 'Одна з трьох областей історико-культурного регіону Галичина, частини Карпатського регіону.<br><br>Одна з найрозвиненіших областей в економічному, туристичному, культурному та науковому напрямках.'
+
+        config = self.__upd_ulv_total(config)
+        config = self.__upd_ulv_regions(config)
+
+        return config
+
+    def __upd_ulv_total(self, config):
+        # covid19.gov.ua
+        self.logger.normal(' - Збір загальних даних з index.minfin.com.ua ..')
+        page = self._web_request('https://index.minfin.com.ua/ua/reference/coronavirus/ukraine/')
+
+        rows = self._html_get_node(page, './/div[@class="compact-table expand-table"]//table//tr')
+        for row in rows:
+            items = row.xpath('.//td')
+            if len(items) == 0 or len(items[0]) == 0:
+                continue
+            elif items[0][0].text == 'Львівська':
+                config['Sick'] = int(items[1].text)
+                config['Dead'] = int(items[3].text)
+                config['Recovered'] = int(items[5].text)
+
+        tested_links = ['https://portal.lviv.ua/news/2020/06/01/covid-19-na-lvivshchyni-karta-poshyrennia-po-rajonakh',
+                        'https://portal.lviv.ua/news/2020/06/02/v-iakykh-rajonakh-lvivshchyny-najbilshe-khvorykh-na-covid-19-karta-poshyrennia',
+                        'https://portal.lviv.ua/news/2020/06/03/novyj-antyrekord-lvivshchyny-za-dobu-vyiavyly-96-khvorykh-na-koronavirus',
+                        'https://portal.lviv.ua/news/2020/06/04/covid-19-na-lvivshchyni-85-khvorykh-za-dobu',
+                        'https://portal.lviv.ua/news/2020/06/05/koronavirusom-zarazylysia-majzhe-2000-meshkantsiv-lvivshchyny',
+                        'https://portal.lviv.ua/news/2020/06/07/koronavirus-na-lvivshchyni-68-novykh-khvorykh',
+                        'https://portal.lviv.ua/news/2020/06/08/na-lvivshchyni-vzhe-73-letalni-vypadky-cherez-covid-19',
+                        'https://portal.lviv.ua/news/2020/06/09/covid-19-na-lvivshchyni-za-dobu-vyiavyly-49-khvorykh',
+                        'https://portal.lviv.ua/news/2020/06/10/2289-vypadkiv-covid-19-na-lvivshchyni-de-najbilshe-khvorykh',
+                        'https://portal.lviv.ua/news/2020/06/11/chomu-u-rajonakh-lvivshchyny-liudy-menshe-khvoriiut-na-koronavirus-poiasnennia-epidemioloha',
+                        'https://portal.lviv.ua/news/2020/06/12/novi-vypadky-covid-19-na-lvivshchyni-zvidky-khvori',
+                        'https://portal.lviv.ua/news/2020/06/13/koronavirusnyj-antyrekord-na-lvivshchyni-za-dobu-132-novykh-khvorykh',
+                        'https://portal.lviv.ua/news/2020/06/14/za-dobu-vid-koronavirusu-na-lvivshchyni-pomer-cholovik-ta-troie-zhinok',
+                        'https://portal.lviv.ua/news/2020/06/15/de-na-lvivshchyni-najbilshe-khvorykh-na-koronavirus',
+                        'https://portal.lviv.ua/news/2020/06/16/lviv-nadali-lidyruie-v-oblasti-za-kilkistiu-khvorykh-na-covid-19',
+                        'https://portal.lviv.ua/news/2020/06/17/3227-vypadkiv-covid-19-na-lvivshchyni-de-najbilshe-khvorykh',
+                        'https://portal.lviv.ua/news/2020/06/18/koronavirus-na-lvivshchyni-karta-poshyrennia-po-rajonakh-oblasti',
+                        'https://portal.lviv.ua/news/2020/06/19/na-lvivshchyni-vyiavleno-3540-vypadkiv-infikuvannia-covid-19',
+                        'https://portal.lviv.ua/news/2020/06/20/koronavirus-pidkhopyly-3679-meshkantsiv-lvivshchyny',
+                        'https://portal.lviv.ua/news/2020/06/21/covid-19-na-lvivshchyni-za-dobu-sotnia-novykh-vypadkiv-zvidky-khvori',
+                        'https://portal.lviv.ua/news/2020/06/22/u-lvovi-vzhe-ponad-2300-liudej-zakhvorily-na-koronavirus',
+                        'https://portal.lviv.ua/news/2020/06/23/4220-vypadkiv-covid-19-na-lvivshchyni-karta-poshyrennia-po-rajonakh',
+                        'https://portal.lviv.ua/news/2020/06/24/koronavirus-na-lvivshchyni-pidtverdyly-u-shche-203-liudej',
+                        'https://portal.lviv.ua/news/2020/06/25/koronavirus-na-lvivshchyni-karta-poshyrennia-rajonamy',
+                        'https://portal.lviv.ua/news/2020/06/26/na-lvivshchyni-vyiavyly-ponad-200-novykh-vypadkiv-koronavirusu',
+                        'https://portal.lviv.ua/news/2020/06/27/u-lvovi-vyiavyly-vzhe-ponad-2-5-tysiachi-khvorykh-na-covid-19',
+                        'https://portal.lviv.ua/news/2020/06/28/covid-19-na-lvivshchyni-karta-poshyrennia-po-rajonakh',
+                        'https://portal.lviv.ua/news/2020/06/29/koronavirus-na-lvivshchyni-115-novykh-khvorykh-oduzhaly-bilshe-700-liudej',
+                        'https://portal.lviv.ua/news/2020/06/30/covid-19-na-lvivshchyni-plius-143-novykh-khvorykh',
+                        'https://portal.lviv.ua/news/2020/07/01/koronavirus-na-lvivshchyni-za-dobu-143-novykh-khvorykh',
+                        'https://portal.lviv.ua/news/2020/07/02/covid-19-na-lvivshchyni-za-dobu-vyiavyly-152-khvorykh',
+                        'https://portal.lviv.ua/news/2020/07/03/u-lvovi-3100-khvorykh-na-koronavirus',
+                        'https://portal.lviv.ua/news/2020/07/04/covid-19-na-lvivshchyni-karta-poshyrennia-rajonamy',
+                        'https://portal.lviv.ua/news/2020/07/05/koronavirus-za-dobu-na-lvivshchyni-vyiavyly-138-novykh-khvorykh',
+                        'https://portal.lviv.ua/news/2020/07/06/ponad-6300-vypadkiv-covid-19-na-lvivshchyni-karta-poshyrennia-rajonamy',
+                        'https://portal.lviv.ua/news/2020/07/07/covid-19-na-lvivshchyni-pidkhopyly-shche-144-liudyny',
+                        'https://portal.lviv.ua/news/2020/07/08/covid-19-na-lvivshchyni-pidtverdyly-u-shche-117-liudej',
+                        'http://tvoemisto.tv/covid-19-lviv/',  # 08 Jul 2020
+                        'https://portal.lviv.ua/news/2020/07/09/za-dobu-na-lvivshchyni-119-novykh-infikuvan-covid-19',
+                        'https://portal.lviv.ua/news/2020/07/10/koronavirus-na-lvivshchyny-karta-poshyrennia-po-rajonakh',
+                        'https://portal.lviv.ua/news/2020/07/11/koronavirus-na-lvivshchyni-vyiavleno-119-novykh-vypadkiv',
+                        'https://portal.lviv.ua/news/2020/07/12/na-lvivshchyni-covid-19-pidkhopyly-vzhe-ponad-sim-tysiach-osib',
+                        'https://portal.lviv.ua/news/2020/07/13/lviv-dali-lidyruie-v-oblasti-za-kilkistiu-khvorykh-na-covid-19',
+                        'https://portal.lviv.ua/news/2020/07/14/za-dobu-koronavirus-diahnostuvaly-147-meshkantsiam-lvivshchyny',
+                        'https://portal.lviv.ua/news/2020/07/15/de-na-lvivshchyni-najbilshe-khvoriiut-na-covid-19-karta-poshyrennia',
+                        'https://portal.lviv.ua/news/2020/07/16/ponad-7600-khvorykh-koronavirusom-na-lvivshchyni-karta-poshyrennia-rajonamy',
+                        'https://portal.lviv.ua/news/2020/07/17/na-lvivshchyni-vid-uskladnen-koronavirusu-pomerlo-shche-chetvero-liudej',
+                        'https://portal.lviv.ua/news/2020/07/18/na-lvivshchyni-koronavirus-pidkhopylo-shche-137-osib-pomerlo-chetvero-liudej',
+                        'https://portal.lviv.ua/news/2020/07/19/za-dobu-na-lvivshchyni-vid-koronavirusu-oduzhalo-98-liudej',
+                        'https://portal.lviv.ua/news/2020/07/20/na-lvivshchyni-za-dobu-115-novykh-khvorykh-na-covid-19',
+                        '']
+
+        ''' Commented due to manual updates
+        page = self._web_request(tested_links[0])
+        tested_p = self._html_get_node(page, './/div[@class="article-content"]//p')[3]
+        '''
+
+        # manual update
+        config['Tested'] = 50236  # int(''.join(tested_p.text.split()[7:9]))
+
+        return config
+
+    def __upd_ulv_regions(self, config):
+        # moz.gov.ua
+        # detailed - https://index.minfin.com.ua/ua/reference/coronavirus/ukraine/
+        self.logger.normal(' - Збір даних про регіони з portal.lviv.ua ..')
+        #page = self._web_request(tested_links[0])
+
+        # initial regions data
+        initial = ["Бродівський район", "Буський район",
+                   "Городоцький район", "Дрогобицький район",
+                   "Жидачівський район", "Жовківський район",
+                   "Золочівський район", "Кам'янка-Бузький район",
+                   "Миколаївський район", "Мостиський район",
+                   "Перемишлянський район", "Пустомитівський район",
+                   "Радехівський район", "Самбірський район",
+                   "Сколівський район", "Сокальський район",
+                   "Старосамбірський район", "Стрийський район",
+                   "Турківський район", "Яворівський район",
+                   "м. Львів"]
+        config['Regions'] = {k: 0 for k in initial}
+
+        ''' Commented due to manual updates
+        litems = self._html_get_node(page, './/div[@class="article-content"]//ol//li')
+        for litem in litems:
+            reg, sick = litem.text.replace(';', '').replace('’', '\'').split('–')[:2]
+            reg = reg.strip()
+            sick = int(sick.replace(',', ' ').replace('.', ' ').split()[0])
+
+            if reg == 'м. Червоноград':
+                config['Regions']['Сокальський район'] += sick
+
+            if reg in initial:
+                config['Regions'][reg] = sick
+        '''
+
+        # manual update
+        config['Regions'] = {
+                "Бродівський район": 62,
+                "Буський район": 62,
+                "Городоцький район": 241,
+                "Дрогобицький район": 188,  # Борислав, Стебник, Дрогобич, Трускавець
+                "Жидачівський район": 84,
+                "Жовківський район": 445,
+                "Золочівський район": 78,
+                "Кам'янка-Бузький район": 302,
+                "Миколаївський район": 327,  # Новий Розділ
+                "Мостиський район": 74,
+                "Перемишлянський район": 120,
+                "Пустомитівський район": 743,
+                "Радехівський район": 32,
+                "Самбірський район": 106,  # Самбір
+                "Сколівський район": 29,
+                "Сокальський район": 282,  # Червоноград
+                "Старосамбірський район": 10,
+                "Стрийський район": 129,  # Моршин, Стрий
+                "Турківський район": 75,
+                "Яворівський район": 629,
+                "м. Львів": 4108
+            }
 
         return config
 
     def _upd_isr(self):
-        config = {'Name': 'Ізраїль', 'Code': 'isr', 'ViewBoxSz': '0 0 250 800',
+        config = {'Name': 'Ізраїль', 'Code': 'isr',
+                  'ViewBoxSz': '0 0 250 800', 'ViewBoxLineSz': 1.0,
                   'Population': 8638917, 'Area': 20770,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
+                  'Peak': 10000, 'Description': '', 'Cure': 3,
                   'Regions': {},
-                  'vii': '☣️ Дані з регіонів Ізраїлю відсутні у відкритому доступі. Статистика по регіонах відображає ситуацію станом на 30 квітня 2020 року.'}
+                  'vii': '☣️ Дані з регіонів Ізраїлю відсутні у відкритому доступі.<br><br>👉 Публікація останніх відкритих даних відбулась 30 квітня 2020 року.<br><br>👉 Регіональний розподіл виконаний рівномірно на основі розподілу кількості населення у регіонах.'}
 
+        config['Description'] = 'Розташований на східному узбережжі Середземного моря. Незалежність проголошено 14 травня 1948 року (5 іяра 5708 року).<br><br>Ізраїль є єврейською державою. Упродовж трьох тисячоліть слово «Ізраїль» позначає Землю Ізраїльську (івр. אֶרֶץ יִשְׂרָאֵל‎, Е́рец-Їсрае́ль) і весь єврейський народ.<br><br>Джерелом назви слугує Книга Буття, де Яків, син Ісаака, після боротьби з ангелом Бога отримує ім\'я Ізраїль.'
+
+        # cure: https://www.ukrinform.ua/rubric-world/2899971-vakcina-proti-koronavirusu-oglad-svitovih-rozrobok.html
         # https://data.gov.il/dataset/covid-19/resource/d07c0771-01a8-43b2-96cc-c6154e7fa9bd
         # https://data.gov.il/dataset/covid-19/resource/dcf999c1-d394-4b57-a5e0-9d014a62e046#collapse-endpoints
         # https://coronaupdates.health.gov.il/
@@ -374,16 +595,22 @@ class iCovid (iCovidBase):
 
     def __upd_isr_total(self, config):
         # govextra.gov.il
-        self.logger.normal(' - Збір загальних даних з govextra.gov.il ..')
-        page = self._web_request('https://govextra.gov.il/ministry-of-health/corona/corona-virus/')
+        # Palestine: https://corona.ps/
+        self.logger.normal(' - Збір загальних даних з worldometers.info ..')
+        page = self._web_request('https://www.worldometers.info/coronavirus/')
 
-        testsick = self._html_get_node(page, './/div[@class="corona-xl corona-bold corona-sickmiddle"]')
-        config['Tested'] = int(testsick[0].text.replace(',', ''))
-        config['Sick'] = int(testsick[1].text.replace(',', ''))
+        countries = self._html_get_node(page, './/table[@id="main_table_countries_today"]/tbody/tr')
+        for country in countries:
+            nodes = country.xpath('.//td//a')
 
-        deadrec = self._html_get_node(page, './/div[@class="corona-lg corona-bold"]')
-        config['Dead'] = int(deadrec[0].text.replace(',', ''))
-        config['Recovered'] = int(deadrec[1].text.replace(',', ''))
+            # check if there is name of country and it is Israel
+            if len(nodes) > 0 and nodes[0].text == 'Israel':
+                break
+
+        config['Sick'] = int(country.xpath('.//td')[2].text.replace(',', ''))
+        config['Dead'] = int(country.xpath('.//td')[4].text.replace(',', ''))
+        config['Recovered'] = int(country.xpath('.//td')[6].text.replace(',', ''))
+        config['Tested'] = int(country.xpath('.//td')[12].text.replace(',', ''))
 
         return config
 
@@ -406,29 +633,40 @@ class iCovid (iCovidBase):
                         "Хамерказ": "Центральний округ (Хамерказ)",
                         "Хефа": "Хайфський округ (Хейфа)"}
 
-        # MANUAL. DAILY.
-        # This data is unavailable in public web-sites.
-        # source: daly Telegram images of Israel`s MOH
-        config['Regions'] = {
-                                'Єрусалимський округ': 2418,
-                                'Центральний округ (Хамерказ)': 1524,
-                                'Тель-Авівський округ': 483,
-                                'Північний округ (Хацафон)': 400,
-                                'Південний округ (Хадаром)': 310,
-                                'Хайфський округ (Хейфа)': 142,
-                                'Голанські Висоти': 0,
-                                'Палестина': 0
-                            }
+        # Населення Ізраїлю
+        # Єрусалим         - 1 075 900 / 8 638 917 = 12.45
+        # Центральний      - 2 108 700 / 8 638 917 = 24.41
+        # Тель-Авів        - 1 381 300 / 8 638 917 = 15.99
+        # Північний округ  - 1 394 200 / 8 638 917 = 16.14
+        # Південний округ  - 1 237 100 / 8 638 917 = 14.32
+        # Хайвський округ  -   989 200 / 8 638 917 = 11.45
+        # Голанські Висоти -    49 700 / 8 638 917 =  0.58
+        # Палестина        -   402 817 / 8 638 917 =  4.66
+        pop_per_district = {
+                'Єрусалимський округ': 12.45,
+                'Центральний округ (Хамерказ)': 24.41,
+                'Тель-Авівський округ': 15.99,
+                'Північний округ (Хацафон)': 16.14,
+                'Південний округ (Хадаром)': 14.32,
+                'Хайфський округ (Хейфа)': 11.45,
+                'Голанські Висоти': 0.58,
+                'Палестина': 4.66
+            }
 
-        # Commented until Israel data will be public
-        # get regions. skip first two general nodes
-        # regions = self._html_get_node(page, './/tbody[@class="ppcUXd"]//tr')[2:]
-        # for region in regions:
-        #     reg = region.xpath('.//th//div//span')[0].text
-        #     reg_name = name_mapping.get(reg, reg)
-        #
-        #     sick = region.xpath('.//td')[0].text.strip().replace('\xa0', '')
-        #     config['Regions'][reg_name] = int(sick) if sick != '—' else 0
+        config['Regions'] = {k: int(v * config['Sick'] / 100.0) for k, v in pop_per_district.items()}
+
+        # MANUAL. DAILY.
+        # This data is unavailable in public web-sites. Actual for 30 Apr 2020.
+        # config['Regions'] = {
+        #     'Єрусалимський округ': 2418,
+        #     'Центральний округ (Хамерказ)': 1524,
+        #     'Тель-Авівський округ': 483,
+        #     'Північний округ (Хацафон)': 400,
+        #     'Південний округ (Хадаром)': 310,
+        #     'Хайфський округ (Хейфа)': 142,
+        #     'Голанські Висоти': 0,
+        #     'Палестина': 0
+        # }
 
         # update Palestine separately
         page = self._web_request('https://news.google.com/covid19/map?hl=uk&gl=UA&ceid=UA%3Auk&mid=%2Fm%2F01k0p4')
@@ -440,10 +678,16 @@ class iCovid (iCovidBase):
         return config
 
     def _upd_pol(self):
-        config = {'Name': 'Польща', 'Code': 'pol', 'ViewBoxSz': '0 0 650 600',
+        config = {'Name': 'Польща', 'Code': 'pol',
+                  'ViewBoxSz': '0 0 650 600', 'ViewBoxLineSz': 0.8,
                   'Population': 37851327, 'Area': 312679,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
+                  'Peak': 6000, 'Description': '', 'Cure': 1,
                   'Regions': {}}
+
+        config['Description'] = 'Держава в Центральній Європі. За даними перепису населення, що відбувся у 2015 році, у країні проживало понад 38,5 мільйонів осіб.<br><br>Польща є п&apos;ятою за кількістю населення країною ЄС, дев&apos;ятою в Європі за площею та восьмою за населенням. Близько 61 % населення проживає в містах.'
+
+        # cure: https://www.ukrinform.ua/rubric-world/2899971-vakcina-proti-koronavirusu-oglad-svitovih-rozrobok.html
 
         config = self.__upd_pol_total(config)
         config = self.__upd_pol_regions(config)
@@ -468,14 +712,14 @@ class iCovid (iCovidBase):
         config['Sick'] = int(country.xpath('.//td')[2].text.replace(',', ''))
         config['Dead'] = int(country.xpath('.//td')[4].text.replace(',', ''))
         config['Recovered'] = int(country.xpath('.//td')[6].text.replace(',', ''))
-        config['Tested'] = int(country.xpath('.//td')[11].text.replace(',', ''))
+        config['Tested'] = int(country.xpath('.//td')[12].text.replace(',', ''))
 
         return config
 
     def __upd_pol_regions(self, config):
         # news.google.com
-        self.logger.normal(' - Збір даних про регіони з news.google.com ..')
-        page = self._web_request('https://news.google.com/covid19/map?hl=uk&gl=UA&ceid=UA%3Auk&mid=%2Fm%2F05qhw')
+        self.logger.normal(' - Збір даних про регіони з www.gov.pl ..')
+        page = self._web_request('https://www.gov.pl/web/koronawirus/wykaz-zarazen-koronawirusem-sars-cov-2')
 
         # initial regions data
         initial = ['Мазовецьке воєводство', 'Сілезьке воєводство',
@@ -489,35 +733,46 @@ class iCovid (iCovidBase):
         config['Regions'] = {k: 0 for k in initial}
 
         # used to store data under better regions naming
-        name_mapping = {'Мазовецьке': 'Мазовецьке воєводство',
-                        'Шльонське воєводство': 'Сілезьке воєводство',
-                        'Нижньосілезьке': 'Нижньосілезьке воєводство',
-                        'Лодзький': 'Лодзьке воєводство',
-                        'Малопольське': 'Малопольське воєводство',
-                        'Куявсько-Поморське': 'Куявсько-Поморське воєводство',
-                        'Поморські': 'Поморське воєводство',
-                        'Опольске': 'Опольске воєводство',
-                        'Заходньопоморське воєводство': 'Західнопоморське воєводство',
-                        'Подкарпатське воєводство': 'Підкарпатське воєводство',
-                        'Вармінсько-Мазурське': 'Вармінсько-Мазурське воєводство',
-                        'Любуске': 'Любуське воєводство'}
+        name_mapping = {'mazowieckie': 'Мазовецьке воєводство',
+                        'śląskie': 'Сілезьке воєводство',
+                        'dolnośląskie': 'Нижньосілезьке воєводство',
+                        'łódzkie': 'Лодзьке воєводство',
+                        'małopolskie': 'Малопольське воєводство',
+                        'kujawsko-pomorskie': 'Куявсько-Поморське воєводство',
+                        'pomorskie': 'Поморське воєводство',
+                        'opolskie': 'Опольске воєводство',
+                        'zachodniopomorskie': 'Західнопоморське воєводство',
+                        'podkarpackie': 'Підкарпатське воєводство',
+                        'warmińsko-mazurskie': 'Вармінсько-Мазурське воєводство',
+                        'lubuskie': 'Любуське воєводство',
+                        'świętokrzyskie': 'Свентокшиське воєводство',
+                        'wielkopolskie': 'Великопольське воєводство',
+                        'podlaskie': 'Підляське воєводство',
+                        'lubelskie': 'Люблінське воєводство'}
 
         # get regions. skip first two general nodes
-        regions = self._html_get_node(page, './/tbody[@class="ppcUXd"]//tr')[2:]
+        regs_data = json.loads(self._html_get_node(page, './/pre[@id="registerData"]')[0].text)['data']
+        regions = [row.split(';') for row in regs_data.split('\n') if len(row.split(';')) > 1][2:]
         for region in regions:
-            reg = region.xpath('.//th//div//div')[0].text
+            reg = region[0]
             reg_name = name_mapping.get(reg, reg)
 
-            sick = region.xpath('.//td')[0].text.strip().replace('\xa0', '')
+            sick = int(region[1].replace(' ', ''))
             config['Regions'][reg_name] = int(sick) if sick != '—' else 0
 
         return config
 
     def _upd_rus(self):
-        config = {'Name': 'Московія', 'Code': 'rus', 'ViewBoxSz': '0 0 1250 800',
+        config = {'Name': 'Московія', 'Code': 'rus',
+                  'ViewBoxSz': '0 0 1250 800', 'ViewBoxLineSz': 0.8,
                   'Population': 145927292, 'Area': 17098246,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
+                  'Peak': 10000, 'Description': '', 'Cure': 3,
                   'Regions': {}}
+
+        config['Description'] = 'Федеративна республіка у північній Євразії. Початки державності відносять до періоду Русі — середньовічної держави із центром в Києві, під час розпаду якої, її північно-східні провінції перейшли під владу Золотої Орди, а пізніше стали основою майбутньої Московської держави.<br><br>У березні 2014 року здійснила військову агресію проти України, анексувавши Крим та Севастополь. Веде гібридну війну на Донбасі з метою окупації України.'
+
+        # cure: https://www.aa.com.tr/en/latest-on-coronavirus-outbreak/russia-to-hold-phase-3-of-covid-19-vaccine-trial-abroad/1912694
 
         config = self.__upd_rus_total(config)
         config = self.__upd_rus_regions(config)
@@ -526,14 +781,27 @@ class iCovid (iCovidBase):
 
     def __upd_rus_total(self, config):
         # news.google.com
+        # https://covid.ourworldindata.org/data/owid-covid-data.json
         self.logger.normal(' - Збір загальних даних з covid19.rosminzdrav.ru ..')
         page = self._web_request('https://covid19.rosminzdrav.ru/wp-json/api/mapdata/')
         data = json.loads(page)['Items']
 
-        config['Tested'] = data[-1]['Observations']
+        # config['Tested'] = sum([it['Observations'] for it in data])
         config['Sick'] = sum([it['Confirmed'] for it in data])
         config['Recovered'] = sum([it['Recovered'] for it in data])
         config['Dead'] = sum([it['Deaths'] for it in data])
+
+        page = self._web_request('https://www.worldometers.info/coronavirus/')
+
+        countries = self._html_get_node(page, './/table[@id="main_table_countries_today"]/tbody/tr')
+        for country in countries:
+            nodes = country.xpath('.//td//a')
+
+            # check if there is name of country and it is Russia
+            if len(nodes) > 0 and nodes[0].text == 'Russia':
+                break
+
+        config['Tested'] = int(country.xpath('.//td')[12].text.replace(',', ''))
 
         return config
 
@@ -700,10 +968,18 @@ class iCovid (iCovidBase):
         return config
 
     def _upd_hug(self):
-        config = {'Name': 'Угорщина', 'Code': 'hug', 'ViewBoxSz': '0 0 630 400',
+        config = {'Name': 'Угорщина', 'Code': 'hug',
+                  'ViewBoxSz': '0 0 630 400', 'ViewBoxLineSz': 0.7,
                   'Population': 9663123, 'Area': 93030,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
+                  'Peak': 2000, 'Description': '', 'Cure': 2,
                   'Regions': {}}
+
+        config['Description'] = 'Держава в центральній Європі. Державна мова — угорська, що є найбільш уживаною уральською мовою у світі.<br><br>Територія сучасної Угорщини століттями була заселена цілою низкою народів, включаючи кельтів, римлян, германських племен, гунів, західних слов&apos;ян та аварів. Країна має економіку з високим рівнем доходу.'
+
+        # cure: https://www.cfr.org/backgrounder/what-world-doing-create-covid-19-vaccine
+        # cure: https://hungarytoday.hu/avigan-drug-against-covid-19-to-be-tested-in-hungary/
+        # cure: https://dailynewshungary.com/hungarian-discovery-might-bring-a-breakthrough-in-curing-covid-19/
 
         config = self.__upd_hug_total(config)
         config = self.__upd_hug_regions(config)
@@ -712,20 +988,22 @@ class iCovid (iCovidBase):
 
     def __upd_hug_total(self, config):
         # news.google.com
-        self.logger.normal(' - Збір загальних даних з news.google.com ..')
-        page = self._web_request('https://news.google.com/covid19/map?hl=uk&gl=UA&ceid=UA%3Auk&mid=%2Fm%2F03gj2')
-
-        total_info = self._html_get_node(page, './/tbody[@class="ppcUXd"]//tr')[1]
-        sick = total_info.xpath('.//td')[0].text.strip().replace('\xa0', '')
-        config['Sick'] = int(sick) if sick != '—' else 0
-
-        recv = total_info.xpath('.//td')[2].text.strip().replace('\xa0', '')
-        config['Recovered'] = int(recv) if sick != '—' else 0
-
-        dead = total_info.xpath('.//td')[3].text.strip().replace('\xa0', '')
-        config['Dead'] = int(dead) if sick != '—' else 0
-
+        self.logger.normal(' - Збір загальних даних з koronavirus.gov.hu ..')
         page = self._web_request('https://koronavirus.gov.hu/')
+
+        recv_pest = self._html_get_node(page, './/div[@id="api-gyogyult-pest"]')[0]
+        recv_videk = self._html_get_node(page, './/div[@id="api-gyogyult-videk"]')[0]
+        config['Recovered'] = int(recv_pest.text.replace(' ', '')) + int(recv_videk.text.replace(' ', ''))
+
+        sick_pest = self._html_get_node(page, './/div[@id="api-fertozott-pest"]')[0]
+        sick_videk = self._html_get_node(page, './/div[@id="api-fertozott-videk"]')[0]
+        quarantine = self._html_get_node(page, './/div[@id="api-karantenban"]')[0]
+        config['Sick'] = int(sick_pest.text.replace(' ', '')) + int(sick_videk.text.replace(' ', '')) + int(quarantine.text.replace(' ', '')) + config['Recovered']
+
+        dead_pest = self._html_get_node(page, './/div[@id="api-elhunyt-pest"]')[0]
+        dead_videk = self._html_get_node(page, './/div[@id="api-elhunyt-videk"]')[0]
+        config['Dead'] = int(dead_pest.text.replace(' ', '')) + int(dead_videk.text.replace(' ', ''))
+
         tested = self._html_get_node(page, './/div[@id="api-mintavetel"]')[0]
         config['Tested'] = int(tested.text.replace(' ', ''))
         return config
@@ -782,10 +1060,16 @@ class iCovid (iCovidBase):
         return config
 
     def _upd_rom(self):
-        config = {'Name': 'Румунія', 'Code': 'rom', 'ViewBoxSz': '200 350 260 450',
+        config = {'Name': 'Румунія', 'Code': 'rom',
+                  'ViewBoxSz': '200 350 260 450', 'ViewBoxLineSz': 0.7,
                   'Population': 19251921, 'Area': 238397,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
+                  'Peak': 4000, 'Description': '', 'Cure': 1,
                   'Regions': {}}
+
+        config['Description'] = 'Держава на перехресті східної, центральної та південно-східної Європи.<br><br>Назва Romania походить від лат. romanus, що означає &quot;громадянин Риму&quot;. Перше відоме вживання цього звернення датується XVI ст. італійськими гуманістами, що подорожували Трансільванією, Богданією та Волощиною.<br><br>Переважна більшість населення самоідентифікують, як православні християнами і є носіями румунської мови.'
+
+        # cure: https://www.romania-insider.com/romania-european-system-coronavirus-vaccine
 
         config = self.__upd_rom_total(config)
         config = self.__upd_rom_regions(config)
@@ -800,14 +1084,25 @@ class iCovid (iCovidBase):
         hdrs = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'}
 
         # get intial page to find out final link with tested persond data
-        page = self._web_request('http://www.mae.ro/node/51759', headers=hdrs)
-        node_link = self._html_get_node(page, './/div[@class="art"]//p//a')[3]
-        target_link = 'http://www.mae.ro{}'.format(node_link.attrib['href'])
+        page = self._web_request('https://stirioficiale.ro/informatii', headers=hdrs)
+        links = self._html_get_node(page, './/div[@class="flex-1 px-8 py-5"]//h1//a')
 
-        # get the page with tested persons quanity
-        page = self._web_request(target_link, headers=hdrs)
-        data = self._html_get_node(page, './/div[@class="art"]/p')[8].text
-        config['Tested'] = int(data.split()[10].replace('.', ''))
+        # go through all available paragraphs and look for the link
+        target_link = ''
+        for link in links:
+            if 'BULETIN DE PRESĂ' in link.text:
+                target_link = link.attrib['href']
+                break
+
+        if target_link:
+            self.logger.debug('Цільове посилання: {} ..'.format(target_link))
+            # get the page with tested persons quanity
+            page = self._web_request(target_link, headers=hdrs)
+            paragraphs = self._html_get_node(page, './/div[@class="my-8 break-words rich-text"]//p')
+            for p in paragraphs:
+                if p.text and p.text.strip().endswith('teste.'):
+                    config['Tested'] = int(p.text.split()[10].replace('.', ''))
+                    break
 
         # get other data
         page = self._web_request('https://datelazi.ro/latestData.json')
@@ -891,7 +1186,7 @@ class iCovid (iCovidBase):
             if region == '-':
                 # unproceeded persons will be equally divided between regions
                 unknown = data[region]
-                self.logger.debug('Невідомий регіон ще %d осіб' % unknown)
+                self.logger.debug('Невідомий регіон у %d осіб' % unknown)
 
                 # common shared number
                 common = int(data[region] / len(config['Regions']))
@@ -917,7 +1212,7 @@ class iCovid (iCovidBase):
         data_yestd = self.db.get({'date': (date.today() - timedelta(days=1)).strftime("%d %b %Y")})
 
         # datetime object containing current date and time
-        curr_date = '\n * Дані станом на {:%d %B %Y [%H:%M:%S]}\n'.format(datetime.now())
+        curr_date = '\n * Дані станом на {:%d %b %Y [%H:%M:%S]}\n'.format(datetime.now())
         text = self.translate('eng', 'ukr', curr_date)
 
         for country, cfg in data_today.items():
@@ -999,8 +1294,79 @@ class iCovid (iCovidBase):
 
     def _html_report(self):
         ''' Export data to HTML web page '''
+        def make_history(country, days_to_show=14):
+            """ Prepare dynamics data for chart drawing
+
+            Args:
+                country (str): Country name
+                days_to_show (int, optional): Number of days to process. Defaults to 14.
+
+            Returns:
+                dict: History data
+            """
+            data = {'days': [], 'test': [], 'sick': [], 'recv': [], 'dead': []}
+
+            for day in self.db.get_dates_list():
+                info = self.db.get({'date': day, 'country': country})
+                if not info:
+                    continue
+
+                data['days'].append('"%s"' % self.translate('eng', 'ukr', day).split()[0])
+                data['test'].append('"%s"' % info['Tested'])
+                data['sick'].append('"%s"' % info['Sick'])
+                data['recv'].append('"%s"' % info['Recovered'])
+                data['dead'].append('"%s"' % info['Dead'])
+
+            for k, v in data.items():
+                data[k] = '[%s]' % ', '.join(v[-days_to_show:])
+
+            return data
+
+        def make_data_regs(country, today, yestd):
+            """ Function build data regs attribute
+
+            Args:
+                country (str): name of the country
+                today (str): today`s date
+                yestd (str): yesterday`s date
+
+            Returns:
+                str: data-regs attribute
+            """
+            data_regs = []
+            data_reg_tmpl = '"{}", "{}", "{}", "{}", "{}"'
+
+            today_data = self.db.get({'date': today, 'country': country})
+            yestd_data = self.db.get({'date': yestd, 'country': country})
+
+            for region in today_data['Regions']:
+                sick = today_data['Regions'].get(region, 0)
+                d_sick = sick - yestd_data['Regions'].get(region, sick)
+                data_regs.append([region, sick, d_sick])
+                #data_regs.append(data_reg_tmpl.format(region, sick, d_sick))
+
+            # 5 zones coloured by unique colour
+            danger_color = "dtrr_danger{}"
+            min_sick = min([it[1] for it in data_regs])
+            sick_step = (max([it[1] for it in data_regs]) + 1 - min_sick) / 5
+
+            min_dsick = min([it[2] for it in data_regs])
+            dsick_step = (max([it[2] for it in data_regs]) + 1 - min_dsick) / 5
+
+            for reg in data_regs:
+                # depending of the value, region will have its colour
+                sick = danger_color.format(int((reg[1] - min_sick) // sick_step))
+                reg.append(sick)
+                delta_sick = danger_color.format(int((reg[2] - min_dsick) // dsick_step))
+                reg.append(delta_sick)
+
+            # sort regions by number of sick and format
+            data_regs = [data_reg_tmpl.format(*x) for x in sorted(data_regs, key=lambda x: int(x[1]), reverse=True)]
+
+            return '[{}]'.format(','.join(data_regs)).replace('\'', '&apos;')
+
         # define templates for complex nodes
-        total_tmpl = '{}<div id="total{}" title="{}" tested="{}" d_tested="{}" sick="{}" d_sick="{}" recovered="{}" d_recovered="{}" dead="{}" d_dead="{}" style="display: none;"></div>\n'
+        total_tmpl = '{}<div id="total{}" title="{}" peak="{}" popl="{}" area="{}" dens="{}" desc="{}" cure="{}" data-regs=\'{}\' tested="{}" d_tested="{}" sick="{}" d_sick="{}" recovered="{}" d_recovered="{}" dead="{}" d_dead="{}" data-days=\'{}\' data-test=\'{}\' data-sick=\'{}\' data-recv=\'{}\' data-dead=\'{}\' style="display: none;"></div>\n'
         country_tmpl = \
             '            <div class="tab">\n' \
             '                <input type="radio" name="tabgroup" id="{0}" onclick="country_changed(\'{0}\')" autocomplete="off" {1}>\n' \
@@ -1013,7 +1379,8 @@ class iCovid (iCovidBase):
             '                    </svg>\n' \
             '                </div>\n' \
             '            </div>\n'
-        region_tmpl = '{}<path title="{}" tested="{}" sick="{}" recovered="{}" dead="{}"style="fill: rgb({}, {}, {});" class="land enabled" onclick="copy_info()" d="{}"/>\n'
+        region_tmpl = '{}<path title="{}" tested="{}" sick="{}" d_sick="{}" recovered="{}" dead="{}" style="fill: rgb({}, {}, {});{}" class="land enabled" onclick="copy_info()" d="{}"/>\n'
+        path_style_tmpl = ' stroke:#000000; stroke-width:{}; stroke-linecap:butt; stroke-linejoin:round; stroke-opacity:1;'
         vii_tmpl = '<span class="vi_info" onclick="notify(\'{}\', 15000);">☣️</span>'
 
         # create htmlWorker object
@@ -1027,8 +1394,9 @@ class iCovid (iCovidBase):
         checked = 'checked'
         tab = '    '
 
-        # get current date
+        # get current and yesterday dates
         curr_date = date.today().strftime("%d %b %Y")
+        yest_date = (date.today() - timedelta(days=1)).strftime("%d %b %Y")
 
         # upload paths for regions
         with open('./report/regions.map', 'r+') as fp:
@@ -1036,7 +1404,7 @@ class iCovid (iCovidBase):
 
         # get data for current date
         today_data = self.db.get({'date': curr_date})
-        yestd_data = self.db.get({'date': (date.today() - timedelta(days=1)).strftime("%d %b %Y")})
+        yestd_data = self.db.get({'date': yest_date})
 
         # stage 1 - date of latest data update
         updated = self.translate('eng', 'ukr', curr_date)
@@ -1044,31 +1412,51 @@ class iCovid (iCovidBase):
         # configure default information
         default = today_data.get('Україна')
         y_default = yestd_data.get('Україна')
-        total = total_tmpl.format(tab * 2, '', default['Name'],
+
+        # prepare dynamics data
+        hist = make_history('Україна', 14)
+
+        # make default total data
+        total = total_tmpl.format(tab * 2, '', default['Name'], default['Peak'],
+                                  '{:,}'.format(default['Population']),
+                                  '{:,}'.format(default['Area']),
+                                  '{:.2f}'.format(default['Population'] / default['Area']),
+                                  default['Description'], default['Cure'],
+                                  make_data_regs(default['Name'], curr_date, yest_date),
                                   default['Tested'], default['Tested'] - y_default.get('Tested', 0),
                                   default['Sick'],   default['Sick'] - y_default.get('Sick', 0),
                                   default['Recovered'], default['Recovered'] - y_default.get('Recovered', 0),
-                                  default['Dead'], default['Dead'] - y_default.get('Dead', 0))
+                                  default['Dead'], default['Dead'] - y_default.get('Dead', 0),
+                                  hist['days'], hist['test'], hist['sick'], hist['recv'], hist['dead'])
+
 
         for country, data in today_data.items():
             y_data = yestd_data.get(country, {})
+            # prepare dynamics data
+            hist = make_history(country, 14)
+
             # stage 2 - prepare total info for the country
-            total += total_tmpl.format(tab * 2, '_%s' % data['Code'], data['Name'],
+            total += total_tmpl.format(tab * 2, '_%s' % data['Code'], data['Name'], data['Peak'],
+                                       '{:,}'.format(data['Population']),
+                                       '{:,}'.format(data['Area']),
+                                       '{:.2f}'.format(data['Population'] / data['Area']),
+                                       data['Description'], data['Cure'],
+                                       make_data_regs(data['Name'], curr_date, yest_date),
                                        data['Tested'], data['Tested'] - y_data.get('Tested', 0),
                                        data['Sick'], data['Sick'] - y_data.get('Sick', 0),
                                        data['Recovered'], data['Recovered'] - y_data.get('Recovered', 0),
-                                       data['Dead'], data['Dead'] - y_data.get('Dead', 0))
+                                       data['Dead'], data['Dead'] - y_data.get('Dead', 0),
+                                       hist['days'], hist['test'], hist['sick'], hist['recv'], hist['dead'])
 
             # stage 3 - regions data
-            # max_sick = max(data['Regions'].values())
-            # max_sick = sum(data['Regions'].values()) / len(data['Regions'].values())
-            max_sick = 2000
-            color_step = (max_sick / 256) or 1
+            color_step = (data['Peak'] / 256) or 1
+            path_style = path_style_tmpl.format(data['ViewBoxLineSz'])
 
             _regions = ''
             for region, path in regions_map[data['Name']].items():
                 # get number of sick people in region
-                sick = data['Regions'].get(region, '—')
+                sick = data['Regions'].get(region, 0)
+                d_sick = sick - y_data['Regions'].get(region, sick)
                 sick = sick if sick else '—'
 
                 # stub for the future development
@@ -1080,8 +1468,8 @@ class iCovid (iCovidBase):
                 aux_colour = int(255 - ((0 if sick == '—' else sick) / color_step))
                 rgb = (255, aux_colour, aux_colour)
 
-                _regions += region_tmpl.format(tab * 7, region, test, sick,
-                                               recv, dead, *rgb, path)
+                _regions += region_tmpl.format(tab * 7, region, test, sick, d_sick,
+                                               recv, dead, *rgb, path_style, path)
 
             # strip redundant newline
             _regions = _regions.rstrip()
@@ -1100,8 +1488,11 @@ class iCovid (iCovidBase):
         regions = regions.rstrip()
         total = total.rstrip()
 
+        # prepare product version
+        version = '{} [{}]'.format(__version__, self.translate('eng', 'ukr', __release__))
+
         # prepare data for rendering
-        render_cfg = {'updated': updated, 'regions': regions, 'total': total}
+        render_cfg = {'updated': updated, 'regions': regions, 'total': total, 'version': version}
 
         # render and save
         html.render(render_cfg)
@@ -1123,9 +1514,16 @@ class iCovid (iCovidBase):
         return (username, password)
 
     def _ftp_upload(self, srcfile):
+        def ftp_path(orig_path):
+            return orig_path.replace('./report/', '')
+
+        # upload the file via STOR command
+        start = time.time()
         with open(srcfile, 'rb') as f:
-            self.ftp.storbinary('STOR %s' % os.path.basename(srcfile), f, 1024)
-        self.logger.debug('Файл "%s" вивантажено' % srcfile)
+            self.ftp.storbinary('STOR %s' % ftp_path(srcfile), f, 1024)
+        duration = time.time() - start
+
+        self.logger.debug('Файл "%s" вивантажено [%fс]' % (srcfile, duration))
 
     def webpage_update(self, server):
         ''' Update web-page files through FTP server '''
@@ -1144,6 +1542,7 @@ class iCovid (iCovidBase):
             return
 
         # setup FTP connection
+        start = time.time()
         try:
             self.ftp.connect(server, 21)
             self.ftp.login(uname, upass)
@@ -1156,31 +1555,94 @@ class iCovid (iCovidBase):
 
         # prepare copy list
         web_files = ['./report/index.html',
-                     './report/report.css',
-                     './report/report.js',
-                     './report/virus.png']
+                     './report/css/report.css',
+                     './report/js/report.js',
+                     './report/js/chart.min.js',
+                     './report/js/jquery.min.js',
+                     './report/images/gear.png',
+                     './report/images/virus.png',
+                     './report/images/eugenii.png',
+                     './report/images/oleksandr.png',
+                     './report/images/vyrij_logo.png',
+                     './report/flags/flag_default.jpg',
+                     './report/flags/flag_ukr.jpg',
+                     './report/flags/flag_ulv.jpg',
+                     './report/flags/flag_isr.jpg',
+                     './report/flags/flag_pol.jpg',
+                     './report/flags/flag_rus.jpg',
+                     './report/flags/flag_hug.jpg',
+                     './report/flags/flag_rom.jpg']
+
+        duration = time.time() - start
+        self.logger.debug('Приєднано до FTP-сервера [%fс]' % duration)
 
         # copy files
+        start = time.time()
         for wfile in web_files:
             self._ftp_upload(wfile)
+        duration = time.time() - start
 
-        self.logger.success('Веб-сторінку "%s" оновлено' % server)
+        self.logger.success('Веб-сторінку "%s" оновлено [%fс]' % (server, duration))
+
+
+def help():
+    """ Function prints help to the user """
+    # sections separator
+    separator = ' {0:-^80}\n'.format('')
+
+    # prepare program head
+    head = '  {}{{}}[version {} | {}]\n'.format(__title__, __version__, __release__)
+    head = separator + head.format(' ' * (82 - len(head))) + separator
+
+    body = '  This tool provides information regarding COVID-19 disease spread. Here you can\n' + \
+           '  get different kinds of information about territories, countires, number of the\n' + \
+           '  performed tests, spreading coefficients and so on.\n' + \
+           '\n' + \
+           '  CLI tool provides you standard set of needed information. The simplest way to\n' + \
+           '  get the information is to run this tool:\n' + \
+           '      ./icovid.py\n' + \
+           '\n' + \
+           '  To get some debug information, run tool with \'-d\' option:\n' + \
+           '      ./icovid.py [-d|--debug]\n' + \
+           '\n' + \
+           '  To update a web page, run tool with \'-w\' option:\n' + \
+           '      ./icovid.py [-w|--web_update]\n' + \
+           '\n' + \
+           '  To get help, run tool with \'-h\' option:\n' + \
+           '      ./icovid.py [-h|--help]\n' + \
+           '\n'
+
+    foot = separator + \
+           '  For better usage experience visit our website: www.covidinfo.zzz.com.ua\n' + \
+           '  Your questions or proposals you can send to: sviytiv@gmail.com\n' + \
+           separator
+
+    text = head + body + foot
+    print(text)
 
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument('-w', '--web_update',  action='store_true')
     parser.add_argument('-d', '--debug', action='store_true')
+    parser.add_argument('-h', '--help', action='store_true')
 
     args = parser.parse_args()
 
-    covid = iCovid(debug=args.debug)
-    covid.update()
 
-    if args.web_update:
-        covid.webpage_update('covidinfo.zzz.com.ua')
+    if args.help:
+        if args.debug or args.web_update:
+            parser.error('You are not allowed to use help with other options.')
 
-    print(covid)
+        help()
+
+    else:
+        covid = iCovid(debug=args.debug)
+        covid.update()
+        print(covid)
+
+        if args.web_update:
+            covid.webpage_update('covidinfo.zzz.com.ua')
 
 
 if __name__ == '__main__':

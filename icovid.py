@@ -2,8 +2,8 @@
 
 # metadata
 __title__ = 'iCovid Monitoring Utility'
-__version__ = '2.0.8'
-__release__ = '31 Jul 2020'
+__version__ = '2.1.6'
+__release__ = '18 Aug 2020'
 __author__ = 'Alex Viytiv'
 
 # modules
@@ -172,7 +172,7 @@ class dbWorker:
         self.logger.debug('БД дати {} оновлено'.format(k_date))
         return
 
-    def get(self, key):
+    def get(self, key, default=None):
         ''' Update DB entries
 
         :param key: dict of keys used to identify config point
@@ -187,15 +187,15 @@ class dbWorker:
             self.logger.error('Ключ "date" обов\'язковий')
             return None
         elif not self.__db.get(k_date):
-            return None
+            return default
 
         if k_cont:
             if not self.__db[k_date].get(k_cont):
-                return None
+                return default
 
             if key.get('region'):
                 if not self.__db[k_date][k_cont]['regions'].get(k_regn):
-                    return None
+                    return default
 
                 return self.__db[k_date][k_cont]['regions'][k_regn]
 
@@ -348,12 +348,12 @@ class iCovid (iCovidBase):
         self.logger.normal(' - Збір загальних даних з covid19.gov.ua ..')
         page = self._web_request('https://covid19.gov.ua/en/')
 
-        divs = self._html_get_node(page, './/div[@class="one-field light-box info-count"]')
+        divs = self._html_get_node(page, './/div[contains(@class, \'one-field\') and contains(@class, \'light-box\') and contains(@class, \'info-count\')]')
         if len(divs) != 4:
             self.logger.error('Неочікуване число елементів - %d' % len(divs))
             exit(1)
 
-        for i, case in enumerate(['Tested', 'Sick', 'Dead', 'Recovered']):
+        for i, case in enumerate(['Sick', 'Recovered', 'Dead', 'Tested']):
             config[case] = int(divs[i].xpath('.//div')[0].text.strip().replace(' ', ''))
 
         return config
@@ -509,6 +509,9 @@ class iCovid (iCovidBase):
                         'https://portal.lviv.ua/news/2020/07/29/novykh-khvorykh-na-covid-19-ne-vyiavyly-u-dvokh-rajonakh-lvivshchyny',
                         'https://portal.lviv.ua/news/2020/07/30/novykh-khvorykh-na-koronavirus-ne-vyiavyly-u-5-rajonakh-lvivshchyny',
                         'https://portal.lviv.ua/news/2020/07/31/u-semy-mistakh-na-lvivshchyni-mynuloi-doby-ne-vyiavyly-zhodnoho-khvoroho',
+                        'https://portal.lviv.ua/news/2020/08/14/lyshe-u-trokh-rajonakh-lvivshchyny-ne-vyiavyly-koronavirusu',
+                        'https://portal.lviv.ua/news/2020/08/17/u-7-rajonakh-lvivshchyny-ne-vyiavyly-novykh-khvorykh-koronavirusom',
+                        'https://portal.lviv.ua/news/2020/08/18/koronavirus-pidkhopyv-shche-181-meshkanets-lvivshchyny',
                         '']
 
         ''' Commented due to manual updates
@@ -517,7 +520,7 @@ class iCovid (iCovidBase):
         '''
 
         # manual update
-        config['Tested'] = 59227  # int(''.join(tested_p.text.split()[7:9]))
+        config['Tested'] = 78781  # int(''.join(tested_p.text.split()[7:9]))
 
         return config
 
@@ -557,27 +560,27 @@ class iCovid (iCovidBase):
 
         # manual update
         config['Regions'] = {
-                "Бродівський район": 62,
-                "Буський район": 75,
-                "Городоцький район": 281,
-                "Дрогобицький район": 303,  # Борислав, Стебник, Дрогобич, Трускавець
-                "Жидачівський район": 114,
-                "Жовківський район": 496,
-                "Золочівський район": 103,
-                "Кам'янка-Бузький район": 342,
-                "Миколаївський район": 417,  # Новий Розділ
-                "Мостиський район": 100,
-                "Перемишлянський район": 160,
-                "Пустомитівський район": 844,
-                "Радехівський район": 37,
-                "Самбірський район": 150,  # Самбір
-                "Сколівський район": 39,
-                "Сокальський район": 306,  # Червоноград
-                "Старосамбірський район": 28,
-                "Стрийський район": 156,  # Моршин, Стрий
-                "Турківський район": 84,
-                "Яворівський район": 709,
-                "м. Львів": 4715
+                "Бродівський район": 88,
+                "Буський район": 110,
+                "Городоцький район": 359,
+                "Дрогобицький район": 488,  # Борислав, Стебник, Дрогобич, Трускавець
+                "Жидачівський район": 164,
+                "Жовківський район": 632,
+                "Золочівський район": 144,
+                "Кам'янка-Бузький район": 411,
+                "Миколаївський район": 537,  # Новий Розділ
+                "Мостиський район": 125,
+                "Перемишлянський район": 234,
+                "Пустомитівський район": 1019,
+                "Радехівський район": 48,
+                "Самбірський район": 325,  # Самбір
+                "Сколівський район": 66,
+                "Сокальський район": 373,  # Червоноград
+                "Старосамбірський район": 70,
+                "Стрийський район": 242,  # Моршин, Стрий
+                "Турківський район": 93,
+                "Яворівський район": 839,
+                "м. Львів": 5882
             }
 
         return config
@@ -1115,7 +1118,9 @@ class iCovid (iCovidBase):
                     break
 
         # get other data
-        page = self._web_request('https://datelazi.ro/latestData.json')
+        #page = self._web_request('https://datelazi.ro/latestData.json')
+        page = self._web_request('https://di5ds1eotmbx1.cloudfront.net/latestData.json')
+
         data = json.loads(page)['currentDayStats']
 
         config['Sick'] = data['numberInfected']
@@ -1219,7 +1224,7 @@ class iCovid (iCovidBase):
         ''' Show COVID information '''
         # get input data
         data_today = self.db.get({'date': date.today().strftime("%d %b %Y")})
-        data_yestd = self.db.get({'date': (date.today() - timedelta(days=1)).strftime("%d %b %Y")})
+        data_yestd = self.db.get({'date': (date.today() - timedelta(days=1)).strftime("%d %b %Y")}, data_today)
 
         # datetime object containing current date and time
         curr_date = '\n * Дані станом на {:%d %b %Y [%H:%M:%S]}\n'.format(datetime.now())
@@ -1347,7 +1352,7 @@ class iCovid (iCovidBase):
             data_reg_tmpl = '"{}", "{}", "{}", "{}", "{}"'
 
             today_data = self.db.get({'date': today, 'country': country})
-            yestd_data = self.db.get({'date': yestd, 'country': country})
+            yestd_data = self.db.get({'date': yestd, 'country': country}, today_data)
 
             for region in today_data['Regions']:
                 sick = today_data['Regions'].get(region, 0)
@@ -1414,7 +1419,7 @@ class iCovid (iCovidBase):
 
         # get data for current date
         today_data = self.db.get({'date': curr_date})
-        yestd_data = self.db.get({'date': yest_date})
+        yestd_data = self.db.get({'date': yest_date}, today_data)
 
         # stage 1 - date of latest data update
         updated = self.translate('eng', 'ukr', curr_date)
@@ -1584,12 +1589,14 @@ class iCovid (iCovidBase):
                      './report/flags/flag_rom.jpg']
 
         duration = time.time() - start
-        self.logger.debug('Приєднано до FTP-сервера [%fс]' % duration)
+        self.logger.normal('Приєднано до FTP-сервера [%fс]' % duration)
 
         # copy files
+        self.logger.normal('Починаємо надсилання файлів ...', end='\r')
         start = time.time()
-        for wfile in web_files:
+        for i, wfile in enumerate(web_files, 1):
             self._ftp_upload(wfile)
+            self.logger.normal('Наділано на сервер {} з {} файлів ...'.format(i, len(web_files)), end='\r' if wfile != web_files[-1] else '\n')
         duration = time.time() - start
 
         self.logger.success('Веб-сторінку "%s" оновлено [%fс]' % (server, duration))

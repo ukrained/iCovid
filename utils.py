@@ -1,7 +1,7 @@
 # metadata
 __title__ = 'Common Utils Library'
-__version__ = '0.6.7[b]'
-__release__ = '08 Jul 2020'
+__version__ = '0.6.9[b]'
+__release__ = '17 Aug 2020'
 __author__ = 'Alex Viytiv'
 
 
@@ -117,33 +117,33 @@ class logger:
 
         print(('' if raw else prefix) + str(msg), end=end)
 
-    def critical(self, msg):
+    def critical(self, msg, end='.\n'):
         ''' Print critical level log '''
-        self.log(logLevel.CRITICAL, msg)
+        self.log(logLevel.CRITICAL, msg, end=end)
 
-    def error(self, msg):
+    def error(self, msg, end='.\n'):
         ''' Print error level log '''
-        self.log(logLevel.ERROR, msg)
+        self.log(logLevel.ERROR, msg, end=end)
 
-    def warning(self, msg):
+    def warning(self, msg, end='.\n'):
         ''' Print warning level log '''
-        self.log(logLevel.WARNING, msg)
+        self.log(logLevel.WARNING, msg, end=end)
 
-    def success(self, msg):
+    def success(self, msg, end='.\n'):
         ''' Print success level log '''
-        self.log(logLevel.SUCCESS, msg)
+        self.log(logLevel.SUCCESS, msg, end=end)
 
-    def normal(self, msg):
+    def normal(self, msg, end='.\n'):
         ''' Print normal level log '''
-        self.log(logLevel.NORMAL, msg)
+        self.log(logLevel.NORMAL, msg, end=end)
 
-    def debug(self, msg):
+    def debug(self, msg, end='.\n'):
         ''' Print debug level log '''
-        self.log(logLevel.DEBUG, msg)
+        self.log(logLevel.DEBUG, msg, end=end)
 
-    def trace(self, msg):
+    def trace(self, msg, end='.\n'):
         ''' Print trace level log '''
-        self.log(logLevel.TRACE, msg)
+        self.log(logLevel.TRACE, msg, end=end)
 
     def approve(self, msg, default=False):
         ''' Get user approve

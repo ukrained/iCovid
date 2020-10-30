@@ -111,10 +111,10 @@ $(document).on('mousemove', function(e){
 
 $('#footer_content').hover(
     function() {
-        $(this).text("🦠👑 навіть тут був коронавірус 👑🦠");
+        $(this).text("🦠👑 навіть тут був коронавірус. двічі 👑🦠");
     },
     function() {
-        $(this).text("😱 ти крейзі? мерщій вдягай маску! 😷");
+        $(this).text("😱 ти збожеволів? мерщій вдягай маску! 😷");
 });
 
 /* Country changed
@@ -301,38 +301,39 @@ function update_region_stats(name)
         delta_sum += sick_data[i] / sick_data[i - 1];
     }
 
+    // Spead coeficient
     psm_spread = (delta_sum / (sick_delta.length - 1)).toFixed(2);
     danger_lvl = min_max_level_get(0.8, 1.2, 5, psm_spread);
     $('#psm_spread').html(psm_spread + ' %');
     $('#psi_spread').attr('class', 'ps_marker dtrr_danger' + danger_lvl);
 
-    // x = dead / sick
+    // Death rate = dead / sick
     psm_death = (parseInt($('#total').attr('dead')) / parseInt($('#total').attr('sick')) * 100).toFixed(2);
     danger_lvl = min_max_level_get(0, 20, 5, psm_death);
     $('#psm_death').html(psm_death + ' %');
     $('#psi_death').attr('class', 'ps_marker dtrr_danger' + danger_lvl);
 
-    // x = sick * dens
+    // Affected area = sick * dens
     psm_area = Math.round(parseInt($('#total').attr('sick')) / parseFloat($('#total').attr('dens')));
     danger_lvl = min_max_level_get(0, parseInt($('#total').attr('area').replace(/,/g, '')) * 0.01, 5, psm_area);
     $('#psm_area').html(psm_area + ' км<sup>2</sup>');
     $('#psi_area').attr('class', 'ps_marker dtrr_danger' + danger_lvl);
 
-    // x = sick * spread_coef ^ 30 days
-    psm_popl = Math.round((parseInt($('#total').attr('sick')) * Math.pow(psm_spread, 30)).toFixed(2));
+    // Month-sick prognose = sick * spread_coef
+    psm_popl = Math.round((parseInt($('#total').attr('sick')) * psm_spread).toFixed(2));
     danger_lvl = min_max_level_get(0, parseInt($('#total').attr('sick')) * 2, 5, psm_popl);
     $('#psm_popl').html(psm_popl + ' людей');
     $('#psi_popl').attr('class', 'ps_marker dtrr_danger' + danger_lvl);
 
-    // x = sick / popl * spread_coef
+    // Sick risk without protection = sick / popl * spread_coef
     psm_infwo = (parseInt($('#total').attr('sick')) / parseInt($('#total').attr('popl').replace(/,/g, '')) * 100 * psm_spread).toFixed(3);
     danger_lvl = min_max_level_get(0, 2, 5, psm_infwo);
     $('#psm_infwo').html(psm_infwo + ' %');
     $('#psi_infwo').attr('class', 'ps_marker dtrr_danger' + danger_lvl);
 
-    // x = sick / popl * spread_coef * protection_coef
-    protection_coef = 0.5;
-    psm_infwt = (parseInt($('#total').attr('sick')) / parseInt($('#total').attr('popl').replace(/,/g, '')) * psm_spread * protection_coef).toFixed(3);
+    // Sick risk with protection = sick / popl * spread_coef * protection_coef
+    protection_coef = 0.1;  // Masks can decrease speading up to 90%
+    psm_infwt = (parseInt($('#total').attr('sick')) / parseInt($('#total').attr('popl').replace(/,/g, '')) * 100 * psm_spread * protection_coef).toFixed(3);
     danger_lvl = min_max_level_get(0, 1, 5, psm_infwt);
     $('#psm_infwt').html(psm_infwt + ' %');
     $('#psi_infwt').attr('class', 'ps_marker dtrr_danger' + danger_lvl);

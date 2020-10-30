@@ -253,8 +253,9 @@ class iCovidBase:
         '''
         try:
             html = requests.get(url, headers=headers).text
-        except Exception:
+        except Exception as e:
             self.logger.warning('Недійсний сертифікат сервера "{}"'.format(url))
+            self.logger.debug(str(e))
             if not self.logger.approve('Не перевіряти сертифікат'):
                 self.logger.critical('Помилка отримання даних')
                 self.__auto_save = False
@@ -331,7 +332,7 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 640 410', 'ViewBoxLineSz': 0.7,
                   'Population': 43762985, 'Area': 603628,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 8000, 'Description': '', 'Cure': 2,
+                  'Peak': 40000, 'Description': '', 'Cure': 2,
                   'Regions': {}}
 
         config['Description'] = 'Розташована в Східній та частково в Центральній Європі, у південно-західній частині Східноєвропейської рівнини.<br><br>Держава-правонаступниця УНР, Гетьманщини, Королівства Руського та Київської Русі.<br><br>Найбільша за площею країна з тих, чия територія повністю лежить у Європі.'
@@ -423,9 +424,9 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 1300 1300', 'ViewBoxLineSz': 2,
                   'Population': 2529608, 'Area': 21833,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 1000, 'Description': '', 'Cure': 0,
+                  'Peak': 3000, 'Description': '', 'Cure': 0,
                   'Regions': {},
-                  'vii': '☣️ Нажаль, немає постійного джерела даних для Львівщини.<br><br>👉 Наразі дані оновлюються вручну щоденно.'}
+                  'vii': ['✔️ Автоматичне оновлення даних.<br><br>👉 З 30 жовтня оновлення даних із районів Львівщини виконується автоматично.', '✔️']}
 
         config['Description'] = 'Одна з трьох областей історико-культурного регіону Галичина, частини Карпатського регіону.<br><br>Одна з найрозвиненіших областей в економічному, туристичному, культурному та науковому напрямках.'
 
@@ -449,78 +450,30 @@ class iCovid (iCovidBase):
                 config['Dead'] = int(items[3].text)
                 config['Recovered'] = int(items[5].text)
 
-        tested_links = ['https://portal.lviv.ua/news/2020/06/01/covid-19-na-lvivshchyni-karta-poshyrennia-po-rajonakh',
-                        'https://portal.lviv.ua/news/2020/06/02/v-iakykh-rajonakh-lvivshchyny-najbilshe-khvorykh-na-covid-19-karta-poshyrennia',
-                        'https://portal.lviv.ua/news/2020/06/03/novyj-antyrekord-lvivshchyny-za-dobu-vyiavyly-96-khvorykh-na-koronavirus',
-                        'https://portal.lviv.ua/news/2020/06/04/covid-19-na-lvivshchyni-85-khvorykh-za-dobu',
-                        'https://portal.lviv.ua/news/2020/06/05/koronavirusom-zarazylysia-majzhe-2000-meshkantsiv-lvivshchyny',
-                        'https://portal.lviv.ua/news/2020/06/07/koronavirus-na-lvivshchyni-68-novykh-khvorykh',
-                        'https://portal.lviv.ua/news/2020/06/08/na-lvivshchyni-vzhe-73-letalni-vypadky-cherez-covid-19',
-                        'https://portal.lviv.ua/news/2020/06/09/covid-19-na-lvivshchyni-za-dobu-vyiavyly-49-khvorykh',
-                        'https://portal.lviv.ua/news/2020/06/10/2289-vypadkiv-covid-19-na-lvivshchyni-de-najbilshe-khvorykh',
-                        'https://portal.lviv.ua/news/2020/06/11/chomu-u-rajonakh-lvivshchyny-liudy-menshe-khvoriiut-na-koronavirus-poiasnennia-epidemioloha',
-                        'https://portal.lviv.ua/news/2020/06/12/novi-vypadky-covid-19-na-lvivshchyni-zvidky-khvori',
-                        'https://portal.lviv.ua/news/2020/06/13/koronavirusnyj-antyrekord-na-lvivshchyni-za-dobu-132-novykh-khvorykh',
-                        'https://portal.lviv.ua/news/2020/06/14/za-dobu-vid-koronavirusu-na-lvivshchyni-pomer-cholovik-ta-troie-zhinok',
-                        'https://portal.lviv.ua/news/2020/06/15/de-na-lvivshchyni-najbilshe-khvorykh-na-koronavirus',
-                        'https://portal.lviv.ua/news/2020/06/16/lviv-nadali-lidyruie-v-oblasti-za-kilkistiu-khvorykh-na-covid-19',
-                        'https://portal.lviv.ua/news/2020/06/17/3227-vypadkiv-covid-19-na-lvivshchyni-de-najbilshe-khvorykh',
-                        'https://portal.lviv.ua/news/2020/06/18/koronavirus-na-lvivshchyni-karta-poshyrennia-po-rajonakh-oblasti',
-                        'https://portal.lviv.ua/news/2020/06/19/na-lvivshchyni-vyiavleno-3540-vypadkiv-infikuvannia-covid-19',
-                        'https://portal.lviv.ua/news/2020/06/20/koronavirus-pidkhopyly-3679-meshkantsiv-lvivshchyny',
-                        'https://portal.lviv.ua/news/2020/06/21/covid-19-na-lvivshchyni-za-dobu-sotnia-novykh-vypadkiv-zvidky-khvori',
-                        'https://portal.lviv.ua/news/2020/06/22/u-lvovi-vzhe-ponad-2300-liudej-zakhvorily-na-koronavirus',
-                        'https://portal.lviv.ua/news/2020/06/23/4220-vypadkiv-covid-19-na-lvivshchyni-karta-poshyrennia-po-rajonakh',
-                        'https://portal.lviv.ua/news/2020/06/24/koronavirus-na-lvivshchyni-pidtverdyly-u-shche-203-liudej',
-                        'https://portal.lviv.ua/news/2020/06/25/koronavirus-na-lvivshchyni-karta-poshyrennia-rajonamy',
-                        'https://portal.lviv.ua/news/2020/06/26/na-lvivshchyni-vyiavyly-ponad-200-novykh-vypadkiv-koronavirusu',
-                        'https://portal.lviv.ua/news/2020/06/27/u-lvovi-vyiavyly-vzhe-ponad-2-5-tysiachi-khvorykh-na-covid-19',
-                        'https://portal.lviv.ua/news/2020/06/28/covid-19-na-lvivshchyni-karta-poshyrennia-po-rajonakh',
-                        'https://portal.lviv.ua/news/2020/06/29/koronavirus-na-lvivshchyni-115-novykh-khvorykh-oduzhaly-bilshe-700-liudej',
-                        'https://portal.lviv.ua/news/2020/06/30/covid-19-na-lvivshchyni-plius-143-novykh-khvorykh',
-                        'https://portal.lviv.ua/news/2020/07/01/koronavirus-na-lvivshchyni-za-dobu-143-novykh-khvorykh',
-                        'https://portal.lviv.ua/news/2020/07/02/covid-19-na-lvivshchyni-za-dobu-vyiavyly-152-khvorykh',
-                        'https://portal.lviv.ua/news/2020/07/03/u-lvovi-3100-khvorykh-na-koronavirus',
-                        'https://portal.lviv.ua/news/2020/07/04/covid-19-na-lvivshchyni-karta-poshyrennia-rajonamy',
-                        'https://portal.lviv.ua/news/2020/07/05/koronavirus-za-dobu-na-lvivshchyni-vyiavyly-138-novykh-khvorykh',
-                        'https://portal.lviv.ua/news/2020/07/06/ponad-6300-vypadkiv-covid-19-na-lvivshchyni-karta-poshyrennia-rajonamy',
-                        'https://portal.lviv.ua/news/2020/07/07/covid-19-na-lvivshchyni-pidkhopyly-shche-144-liudyny',
-                        'https://portal.lviv.ua/news/2020/07/08/covid-19-na-lvivshchyni-pidtverdyly-u-shche-117-liudej',
-                        'http://tvoemisto.tv/covid-19-lviv/',  # 08 Jul 2020
-                        'https://portal.lviv.ua/news/2020/07/09/za-dobu-na-lvivshchyni-119-novykh-infikuvan-covid-19',
-                        'https://portal.lviv.ua/news/2020/07/10/koronavirus-na-lvivshchyny-karta-poshyrennia-po-rajonakh',
-                        'https://portal.lviv.ua/news/2020/07/11/koronavirus-na-lvivshchyni-vyiavleno-119-novykh-vypadkiv',
-                        'https://portal.lviv.ua/news/2020/07/12/na-lvivshchyni-covid-19-pidkhopyly-vzhe-ponad-sim-tysiach-osib',
-                        'https://portal.lviv.ua/news/2020/07/13/lviv-dali-lidyruie-v-oblasti-za-kilkistiu-khvorykh-na-covid-19',
-                        'https://portal.lviv.ua/news/2020/07/14/za-dobu-koronavirus-diahnostuvaly-147-meshkantsiam-lvivshchyny',
-                        'https://portal.lviv.ua/news/2020/07/15/de-na-lvivshchyni-najbilshe-khvoriiut-na-covid-19-karta-poshyrennia',
-                        'https://portal.lviv.ua/news/2020/07/16/ponad-7600-khvorykh-koronavirusom-na-lvivshchyni-karta-poshyrennia-rajonamy',
-                        'https://portal.lviv.ua/news/2020/07/17/na-lvivshchyni-vid-uskladnen-koronavirusu-pomerlo-shche-chetvero-liudej',
-                        'https://portal.lviv.ua/news/2020/07/18/na-lvivshchyni-koronavirus-pidkhopylo-shche-137-osib-pomerlo-chetvero-liudej',
-                        'https://portal.lviv.ua/news/2020/07/19/za-dobu-na-lvivshchyni-vid-koronavirusu-oduzhalo-98-liudej',
-                        'https://portal.lviv.ua/news/2020/07/20/na-lvivshchyni-za-dobu-115-novykh-khvorykh-na-covid-19',
-                        'https://portal.lviv.ua/news/2020/07/21/covid-19-na-lvivshchyni-za-dobu-oduzhala-121-liudyna-zakhvorilo-114',
-                        'https://portal.lviv.ua/news/2020/07/22/covid-19-na-lvivshchyni-za-dobu-shche-124-novykh-khvorykh',
-                        'https://portal.lviv.ua/news/2020/07/23/u-lvovi-vzhe-ponad-chotyry-tysiachi-khvorykh-na-covid-19',
-                        'http://tvoemisto.tv/covid-19-lviv/',
-                        'https://portal.lviv.ua/news/2020/07/26/u-dev-iatokh-rajonakh-lvivskoi-oblasti-ne-vyiavyly-novykh-khvorykh-na-covid-19',
-                        'https://portal.lviv.ua/news/2020/07/27/covid-19-na-lvivshchyni-8952-khvorykh-za-ostanniu-dobu-120-novykh-vypadkiv',
-                        'https://portal.lviv.ua/news/2020/07/28/koronavirusom-zarazylysia-shche-147-meshkantsiv-lvivshchyny',
-                        'https://portal.lviv.ua/news/2020/07/29/novykh-khvorykh-na-covid-19-ne-vyiavyly-u-dvokh-rajonakh-lvivshchyny',
-                        'https://portal.lviv.ua/news/2020/07/30/novykh-khvorykh-na-koronavirus-ne-vyiavyly-u-5-rajonakh-lvivshchyny',
-                        'https://portal.lviv.ua/news/2020/07/31/u-semy-mistakh-na-lvivshchyni-mynuloi-doby-ne-vyiavyly-zhodnoho-khvoroho',
-                        'https://portal.lviv.ua/news/2020/08/14/lyshe-u-trokh-rajonakh-lvivshchyny-ne-vyiavyly-koronavirusu',
-                        'https://portal.lviv.ua/news/2020/08/17/u-7-rajonakh-lvivshchyny-ne-vyiavyly-novykh-khvorykh-koronavirusom',
-                        'https://portal.lviv.ua/news/2020/08/18/koronavirus-pidkhopyv-shche-181-meshkanets-lvivshchyny',
-                        '']
+        # headers required to get access to the mae.ro web-page
+        hdrs = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:82.0) Gecko/20100101 Firefox/82.0'}
 
-        ''' Commented due to manual updates
-        page = self._web_request(tested_links[0])
-        tested_p = self._html_get_node(page, './/div[@class="article-content"]//p')[3]
-        '''
+        # get intial page to find out final link with tested persond data
+        page = self._web_request('http://ses.lviv.ua/')
+        links = self._html_get_node(page, './/div[@class="moduletable"]//ul//li//a')
 
-        # manual update
-        config['Tested'] = 78781  # int(''.join(tested_p.text.split()[7:9]))
+        # go through all available paragraphs and look for the link
+        target_link = ''
+        for link in links:
+            if 'Covid-19 у Львівській області станом на' in link.text:
+                target_link = 'http://ses.lviv.ua' + link.attrib['href']
+                break
+
+        if target_link:
+            self.logger.debug('Цільове посилання: {} ..'.format(target_link))
+            # get the page with tested persons quanity
+            page = self._web_request(target_link, headers=hdrs)
+            paragraphs = self._html_get_node(page, './/div[@class="item-page news-page"]//div//p')
+
+            for p in paragraphs:
+                if p.text and 'Всього проведено' in p.text.strip():
+                    config['Tested'] = int(p.text.split()[2])
+                    break
 
         return config
 
@@ -531,57 +484,82 @@ class iCovid (iCovidBase):
         # page = self._web_request(tested_links[0])
 
         # initial regions data
-        initial = ["Бродівський район", "Буський район",
-                   "Городоцький район", "Дрогобицький район",
-                   "Жидачівський район", "Жовківський район",
-                   "Золочівський район", "Кам'янка-Бузький район",
-                   "Миколаївський район", "Мостиський район",
-                   "Перемишлянський район", "Пустомитівський район",
-                   "Радехівський район", "Самбірський район",
-                   "Сколівський район", "Сокальський район",
-                   "Старосамбірський район", "Стрийський район",
+        initial = ["Бродівський район", "Буський район", "Городоцький район",
+                   "Дрогобицький район",  # Борислав, Стебник, Дрогобич, Трускавець
+                   "Жидачівський район", "Жовківський район", "Золочівський район",
+                   "Кам'янка-Бузький район", "Миколаївський район",  # Новий Розділ
+                   "Мостиський район", "Перемишлянський район", "Пустомитівський район",
+                   "Радехівський район", "Самбірський район",  # Самбір
+                   "Сколівський район", "Сокальський район",  # Червоноград
+                   "Старосамбірський район", "Стрийський район",  # Моршин, Стрий
                    "Турківський район", "Яворівський район",
                    "м. Львів"]
         config['Regions'] = {k: 0 for k in initial}
 
-        ''' Commented due to manual updates
-        litems = self._html_get_node(page, './/div[@class="article-content"]//ol//li')
-        for litem in litems:
-            reg, sick = litem.text.replace(';', '').replace('’', '\'').split('–')[:2]
-            reg = reg.strip()
-            sick = int(sick.replace(',', ' ').replace('.', ' ').split()[0])
+        sub_regions_mapping = {
+            'Львова': 'м. Львів',
+            'Борислав': 'Дрогобицький район',
+            'Бродівськ': 'Бродівський район',
+            'Буськ': 'Буський район',
+            'Городоцьк': 'Городоцький район',
+            'Дрогобицьк': 'Дрогобицький район',
+            'Дрогобич': 'Дрогобицький район',
+            'Стебник': 'Дрогобицький район',
+            'Жидачівськ': 'Жидачівський район',
+            'Жовківськ': 'Жовківський район',
+            'Золочівськ': 'Золочівський район',
+            'Кам’янка-Бузьк': 'Кам\'янка-Бузький район',
+            'Миколаївськ': 'Миколаївський район',
+            'Моршин': 'Стрийський район',
+            'Мостиськ': 'Мостиський район',
+            'Новий Розділ': 'Миколаївський район',
+            'Перемишлянськ': 'Перемишлянський район',
+            'Пустомитівськ': 'Пустомитівський район',
+            'Радехівськ': 'Радехівський район',
+            'Самбір': 'Самбірський район',
+            'Самбірськ': 'Самбірський район',
+            'Сколівськ': 'Сколівський район',
+            'Сокальськ': 'Сокальський район',
+            'Старосамбірськ': 'Старосамбірський район',
+            'Стрий': 'Стрийський район',
+            'Стрийськ': 'Стрийський район',
+            'Трускавець': 'Дрогобицький район',
+            'Турківськ': 'Турківський район',
+            'Червоноград': 'Сокальський район',
+            'Яворівськ': 'Яворівський район'
+        }
 
-            if reg == 'м. Червоноград':
-                config['Regions']['Сокальський район'] += sick
+        # headers required to get access to the mae.ro web-page
+        hdrs = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:82.0) Gecko/20100101 Firefox/82.0'}
 
-            if reg in initial:
-                config['Regions'][reg] = sick
-        '''
+        # get intial page to find out final link with tested persond data
+        page = self._web_request('http://ses.lviv.ua/')
+        links = self._html_get_node(page, './/div[@class="moduletable"]//ul//li//a')
 
-        # manual update
-        config['Regions'] = {
-                "Бродівський район": 88,
-                "Буський район": 110,
-                "Городоцький район": 359,
-                "Дрогобицький район": 488,  # Борислав, Стебник, Дрогобич, Трускавець
-                "Жидачівський район": 164,
-                "Жовківський район": 632,
-                "Золочівський район": 144,
-                "Кам'янка-Бузький район": 411,
-                "Миколаївський район": 537,  # Новий Розділ
-                "Мостиський район": 125,
-                "Перемишлянський район": 234,
-                "Пустомитівський район": 1019,
-                "Радехівський район": 48,
-                "Самбірський район": 325,  # Самбір
-                "Сколівський район": 66,
-                "Сокальський район": 373,  # Червоноград
-                "Старосамбірський район": 70,
-                "Стрийський район": 242,  # Моршин, Стрий
-                "Турківський район": 93,
-                "Яворівський район": 839,
-                "м. Львів": 5882
-            }
+        # go through all available paragraphs and look for the link
+        target_link = ''
+        for link in links:
+            if 'Covid-19 у Львівській області станом на' in link.text:
+                target_link = 'http://ses.lviv.ua' + link.attrib['href']
+                break
+
+        if target_link:
+            self.logger.debug('Цільове посилання: {} ..'.format(target_link))
+            # get the page with regions sick quanity
+            page = self._web_request(target_link, headers=hdrs)
+            paragraphs = self._html_get_node(page, './/div[@class="item-page news-page"]//div//p')
+
+            for p in paragraphs:
+                if not p.text:
+                    # no text in the paragraph
+                    continue
+
+                for k, v in sub_regions_mapping.items():
+                    # look for the region in the aragraph text
+                    if k in p.text:
+                        local_sick = int(p.text.split('/')[0].replace('–', ' ').replace('-', ' ').split()[-1])
+                        config['Regions'][v] += local_sick
+                        break
 
         return config
 
@@ -590,9 +568,9 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 250 800', 'ViewBoxLineSz': 1.0,
                   'Population': 8638917, 'Area': 20770,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 15000, 'Description': '', 'Cure': 3,
+                  'Peak': 60000, 'Description': '', 'Cure': 3,
                   'Regions': {},
-                  'vii': '☣️ Дані з регіонів Ізраїлю відсутні у відкритому доступі.<br><br>👉 Публікація останніх відкритих даних відбулась 30 квітня 2020 року.<br><br>👉 Регіональний розподіл виконаний рівномірно на основі розподілу кількості населення у регіонах.'}
+                  'vii': ['☣️ Дані з регіонів Ізраїлю відсутні у відкритому доступі.<br><br>👉 Публікація останніх відкритих даних відбулась 30 квітня 2020 року.<br><br>👉 Регіональний розподіл виконаний рівномірно на основі розподілу кількості населення у регіонах.', '☣️']}
 
         config['Description'] = 'Розташований на східному узбережжі Середземного моря. Незалежність проголошено 14 травня 1948 року (5 іяра 5708 року).<br><br>Ізраїль є єврейською державою. Упродовж трьох тисячоліть слово «Ізраїль» позначає Землю Ізраїльську (івр. אֶרֶץ יִשְׂרָאֵל‎, Е́рец-Їсрае́ль) і весь єврейський народ.<br><br>Джерелом назви слугує Книга Буття, де Яків, син Ісаака, після боротьби з ангелом Бога отримує ім\'я Ізраїль.'
 
@@ -695,7 +673,7 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 650 600', 'ViewBoxLineSz': 0.8,
                   'Population': 37851327, 'Area': 312679,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 6000, 'Description': '', 'Cure': 1,
+                  'Peak': 40000, 'Description': '', 'Cure': 1,
                   'Regions': {}}
 
         config['Description'] = 'Держава в Центральній Європі. За даними перепису населення, що відбувся у 2015 році, у країні проживало понад 38,5 мільйонів осіб.<br><br>Польща є п&apos;ятою за кількістю населення країною ЄС, дев&apos;ятою в Європі за площею та восьмою за населенням. Близько 61 % населення проживає в містах.'
@@ -780,7 +758,7 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 1250 800', 'ViewBoxLineSz': 0.8,
                   'Population': 145927292, 'Area': 17098246,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 15000, 'Description': '', 'Cure': 3,
+                  'Peak': 30000, 'Description': '', 'Cure': 3,
                   'Regions': {}}
 
         config['Description'] = 'Федеративна республіка у північній Євразії. Початки державності відносять до періоду Русі — середньовічної держави із центром в Києві, під час розпаду якої, її північно-східні провінції перейшли під владу Золотої Орди, а пізніше стали основою майбутньої Московської держави.<br><br>У березні 2014 року здійснила військову агресію проти України, анексувавши Крим та Севастополь. Веде гібридну війну на Донбасі з метою окупації України.'
@@ -985,7 +963,7 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 630 400', 'ViewBoxLineSz': 0.7,
                   'Population': 9663123, 'Area': 93030,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 2000, 'Description': '', 'Cure': 2,
+                  'Peak': 10000, 'Description': '', 'Cure': 2,
                   'Regions': {}}
 
         config['Description'] = 'Держава в центральній Європі. Державна мова — угорська, що є найбільш уживаною уральською мовою у світі.<br><br>Територія сучасної Угорщини століттями була заселена цілою низкою народів, включаючи кельтів, римлян, германських племен, гунів, західних слов&apos;ян та аварів. Країна має економіку з високим рівнем доходу.'
@@ -1077,7 +1055,7 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '200 350 260 450', 'ViewBoxLineSz': 0.7,
                   'Population': 19251921, 'Area': 238397,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 4000, 'Description': '', 'Cure': 1,
+                  'Peak': 10000, 'Description': '', 'Cure': 1,
                   'Regions': {}}
 
         config['Description'] = 'Держава на перехресті східної, центральної та південно-східної Європи.<br><br>Назва Romania походить від лат. romanus, що означає &quot;громадянин Риму&quot;. Перше відоме вживання цього звернення датується XVI ст. італійськими гуманістами, що подорожували Трансільванією, Богданією та Волощиною.<br><br>Переважна більшість населення самоідентифікують, як православні християнами і є носіями румунської мови.'
@@ -1113,13 +1091,13 @@ class iCovid (iCovidBase):
             page = self._web_request(target_link, headers=hdrs)
             paragraphs = self._html_get_node(page, './/div[@class="my-8 break-words rich-text"]//p')
             for p in paragraphs:
-                if p.text and 'teste.' in p.text.strip():
+                if p.text and 'au fost prelucrate' in p.text.strip():
                     config['Tested'] = int(p.text.split()[10].replace('.', ''))
                     break
 
         # get other data
-        #page = self._web_request('https://datelazi.ro/latestData.json')
-        page = self._web_request('https://di5ds1eotmbx1.cloudfront.net/latestData.json')
+        page = self._web_request('https://datelazi.ro/latestData.json')
+        #page = self._web_request('https://di5ds1eotmbx1.cloudfront.net/latestData.json')
 
         data = json.loads(page)['currentDayStats']
 
@@ -1396,7 +1374,7 @@ class iCovid (iCovidBase):
             '            </div>\n'
         region_tmpl = '{}<path title="{}" tested="{}" sick="{}" d_sick="{}" recovered="{}" dead="{}" style="fill: rgb({}, {}, {});{}" class="land enabled" onclick="copy_info()" d="{}"/>\n'
         path_style_tmpl = ' stroke:#000000; stroke-width:{}; stroke-linecap:butt; stroke-linejoin:round; stroke-opacity:1;'
-        vii_tmpl = '<span class="vi_info" onclick="notify(\'{}\', 15000);">☣️</span>'
+        vii_tmpl = '<span class="vi_info" onclick="notify(\'{}\', 15000);">{}</span>'
 
         # create htmlWorker object
         html = htmlWorker('./report/report.html', './report/index.html')
@@ -1490,7 +1468,7 @@ class iCovid (iCovidBase):
             _regions = _regions.rstrip()
 
             # prepare very important information (vii)
-            vii = vii_tmpl.format(data['vii']) if data.get('vii') else ''
+            vii = vii_tmpl.format(*data['vii']) if data.get('vii') else ''
 
             # form data per country
             regions += country_tmpl.format(data['Code'], checked,

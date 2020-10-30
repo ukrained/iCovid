@@ -1088,3 +1088,80 @@ th, td {
     src: local('Prata Regular'), local('Prata-Regular'), url(https://fonts.gstatic.com/s/prata/v11/6xKhdSpbNNCT-sWPCm4.woff2) format('woff2');
     unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
+
+/* ----- Настільні комп'ютери та ноутбуки ----------- */
+@media only screen
+and (min-width: 1224px) {
+	/* ваші CSS-стилі тут */
+}
+
+/* ----- Девайси з великими екранами ----------- */
+@media only screen
+and (min-width: 1824px) {
+	/* ваші CSS-стилі тут */
+}
+
+/* ----- Смартфони (орієнтація екрану Portrait і Landscape) ----------- */
+@media only screen
+and (min-device-width: 320px)
+and (max-device-width: 480px) {
+	/* ваші CSS-стилі тут */
+}
+
+/* ----- Смартфони (орієнтація екрану Landscape) ----------- */
+@media only screen
+and (min-width: 321px) {
+	/* ваші CSS-стилі тут */
+}
+
+/* ----- Смартфони (орієнтація екрану Portrait) ----------- */
+@media only screen
+and (max-width: 320px) {
+	/* ваші CSS-стилі тут */
+}
+
+/* ----- iPhone 5 (орієнтація екрану Portrait і Landscape)----------- */
+@media only screen
+and (min-device-width: 320px)
+and (max-device-width: 568px) {
+	/* ваші CSS-стилі тут */
+}
+
+/* ----- iPhone 5 (орієнтація екрану Landscape)----------- */
+@media only screen
+and (min-device-width: 320px)
+and (max-device-width: 568px)
+and (orientation: landscape) {
+	/* ваші CSS-стилі тут */
+}
+
+/* ----- iPhone 5 (орієнтація екрану Portrait)----------- */
+@media only screen
+and (min-device-width: 320px)
+and (max-device-width: 568px)
+and (orientation: portrait) {
+	/* ваші CSS-стилі тут */
+}
+
+/* ----- iPad-и (орієнтація екрану Portrait і Landscape) ----------- */
+@media only screen
+and (min-device-width: 768px)
+and (max-device-width: 1024px) {
+	/* ваші CSS-стилі тут */
+}
+
+/* ----- iPad-и (орієнтація екрану Landscape) ----------- */
+@media only screen
+and (min-device-width: 768px)
+and (max-device-width: 1024px)
+and (orientation: landscape) {
+	/* ваші CSS-стилі тут */
+}
+
+/* ----- iPad-и (орієнтація екрану Portrait) ----------- */
+@media only screen
+and (min-device-width: 768px)
+and (max-device-width: 1024px)
+and (orientation: portrait) {
+	/* ваші CSS-стилі тут */
+}

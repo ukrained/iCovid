@@ -30,7 +30,7 @@ svg {
     text-align: center;
     background: white;
     padding: 10px 15px;
-    z-index: 5;
+    z-index: 11;
     height: 20px;
     line-height: 20px;
     margin: 0 auto;
@@ -460,7 +460,7 @@ th, td {
     cursor: default;
     opacity: 0;
     display: none;
-    z-index: 12;
+    z-index: 15;
     left: 50%;
     top: 50%;
     height: 30em;

@@ -2,7 +2,7 @@
 
 # metadata
 __title__ = 'iCovid Monitoring Utility'
-__version__ = '2.4.0'
+__version__ = '2.4.2'
 __release__ = '30 Oct 2020'
 __author__ = 'Alex Viytiv'
 
@@ -480,7 +480,7 @@ class iCovid (iCovidBase):
     def __upd_ulv_regions(self, config):
         # moz.gov.ua
         # detailed - https://index.minfin.com.ua/ua/reference/coronavirus/ukraine/
-        self.logger.normal(' - Збір даних про регіони з portal.lviv.ua ..')
+        self.logger.normal(' - Збір даних про регіони з ses.lviv.ua ..')
         # page = self._web_request(tested_links[0])
 
         # initial regions data

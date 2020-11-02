@@ -2,13 +2,15 @@
 
 # metadata
 __title__ = 'iCovid Monitoring Utility'
-__version__ = '2.5.0'
+__version__ = '2.6.7'
 __release__ = '02 Nov 2020'
 __author__ = 'Alex Viytiv'
 
 # modules
 import urllib.request
 import urllib.parse
+import smtplib, ssl
+import traceback
 import requests
 import argparse
 import time
@@ -22,7 +24,7 @@ from lxml import html
 from ftplib import FTP
 from getpass import getpass
 from datetime import datetime, date, timedelta
-from utils import Colour, LogLevel, Logger
+from utils import Font, LogLevel, Logger, Email
 from urllib.parse import quote
 
 
@@ -289,15 +291,34 @@ class iCovidBase:
 
 
 class iCovid (iCovidBase):
-    def __init__(self):
+    def __init__(self, server_mode=False):
         ''' Constructor '''
         super().__init__()
 
         # initialize FTP object
         self.ftp = FTP()
         self.ftp.set_debuglevel(0)
-        self._uname = ''
-        self._upass = ''
+
+        # server mode flag and credentials data
+        self._server_mode = server_mode
+        self._ftp = {'login': '', 'password': ''}
+        self._smtp = {'email': '', 'password': ''}
+
+        # storage of errors that happened during data update
+        self.upd_errors = []
+
+        # request credentials for FTP and SMTP if server mode used
+        if self._server_mode:
+            logger.normal('Увімкнено автономний режим роботи')
+            logger.normal('Введіть дані для FTP-з\'єднань ..')
+            self._ftp['login'], self._ftp['password'] = self._login()
+
+            logger.normal('Введіть дані для SMTP-з\'єднань ..')
+            self._smtp['email'], self._smtp['password'] = self._login()
+
+            if not (self._ftp['login'] and self._ftp['password'] and \
+                    self._smtp['email'] and self._smtp['password']):
+                logger.warning('Деякі дані не отримано. Вони будуть запитані пізніше')
 
     def update(self):
         ''' Update latest data '''
@@ -321,9 +342,12 @@ class iCovid (iCovidBase):
                 upd_duration = time.time() - upd_start
 
                 logger.success('Дані з %s оновлені [%fс]' % (data['Name'], upd_duration))
+
             except Exception as e:
-                logger.error('Помилка при оновленні даних: %s' % upd_cb)
-                raise e
+                # handle errors and continue data update
+                error_msg = 'Не вдалось оновити дані країни: %s' % upd_cb
+                logger.error(error_msg)
+                self.upd_errors.append([error_msg, traceback.format_exc()])
                 continue
 
         duration = time.time() - start
@@ -1226,7 +1250,7 @@ class iCovid (iCovidBase):
                                                reverse=True)}
 
             # country information
-            text += '\n   [ %s ] ' % Colour.set(Colour.fg.cyan, country)
+            text += '\n   [ %s ] ' % Font.set(Font.fg.cyan, country)
             text += 'Населення {:,} людей на {:,} км2 ({:.2f} л/км2)\n' \
                     .format(cfg['Population'], cfg['Area'],
                             cfg['Population'] / cfg['Area'])
@@ -1237,39 +1261,39 @@ class iCovid (iCovidBase):
 
             d_test = cfg['Tested'] - ycfg.get('Tested', cfg['Tested'])
             d_recv = cfg['Recovered'] - ycfg.get('Recovered', cfg['Recovered'])
-            text += block.format(cfg['Tested'], Colour.set(Colour.fg.grey, 'Перевірені'), d_test,
-                                 cfg['Recovered'], Colour.set(Colour.fg.green, 'Одужали'), d_recv)
+            text += block.format(cfg['Tested'], Font.set(Font.fg.grey, 'Перевірені'), d_test,
+                                 cfg['Recovered'], Font.set(Font.fg.green, 'Одужали'), d_recv)
 
             d_sick = cfg['Sick'] - ycfg.get('Sick', cfg['Sick'])
             d_dead = cfg['Dead'] - ycfg.get('Dead', cfg['Dead'])
-            text += block.format(cfg['Sick'], Colour.set(Colour.fg.yellow, 'Хворі'), d_sick,
-                                 cfg['Dead'], Colour.set(Colour.fg.red, 'Померли'), d_dead)
+            text += block.format(cfg['Sick'], Font.set(Font.fg.yellow, 'Хворі'), d_sick,
+                                 cfg['Dead'], Font.set(Font.fg.red, 'Померли'), d_dead)
 
             # separator
             text += ' +{:-<76}+\n'.format('')
 
             # regions information
             if regions:
-                # 5 zones Coloured by unique Colour
-                zones = {0: Colour.fg.white, 1: Colour.fg.yellow,
-                         2: Colour.fg.orange, 3: Colour.fg.lightred,
-                         4: Colour.fg.red}
+                # 5 zones Fonted by unique Font
+                zones = {0: Font.fg.white, 1: Font.fg.yellow,
+                         2: Font.fg.orange, 3: Font.fg.lightred,
+                         4: Font.fg.red}
                 min_sick = min(regions.values())
                 sick_step = (max(regions.values()) + 1 - min_sick) / 5
 
                 min_rdsick = min(rd_sick.values())
                 rdsick_step = (max(rd_sick.values()) + 1 - min_rdsick) / 5
 
-                text += '   Рівні небезпеки: %s\n' % ' '.join(Colour.set(zones[i], str(i)) for i in range(5))
+                text += '   Рівні небезпеки: %s\n' % ' '.join(Font.set(zones[i], str(i)) for i in range(5))
                 text += ' +{:-<76}+\n'.format('')
 
                 for region, sick in regions.items():
-                    # depending of the value, region will have its Colour
+                    # depending of the value, region will have its Font
                     clr = zones[(rd_sick[region] - min_rdsick) // rdsick_step]
-                    ysick = Colour.set(clr, '%+d' % rd_sick[region])
+                    ysick = Font.set(clr, '%+d' % rd_sick[region])
 
                     clr = zones[(sick - min_sick) // sick_step]
-                    region = Colour.set(clr, region) + ' '
+                    region = Font.set(clr, region) + ' '
                     text += '   {:.<68} {:<6} | {:<5}\n'.format(region, sick, ysick)
 
             else:
@@ -1340,7 +1364,7 @@ class iCovid (iCovidBase):
                 data_regs.append([region, sick, d_sick])
                 #data_regs.append(data_reg_tmpl.format(region, sick, d_sick))
 
-            # 5 zones Coloured by unique Colour
+            # 5 zones Fonted by unique Font
             danger_color = "dtrr_danger{}"
             min_sick = min([it[1] for it in data_regs])
             sick_step = (max([it[1] for it in data_regs]) + 1 - min_sick) / 5
@@ -1349,7 +1373,7 @@ class iCovid (iCovidBase):
             dsick_step = (max([it[2] for it in data_regs]) + 1 - min_dsick) / 5
 
             for reg in data_regs:
-                # depending of the value, region will have its Colour
+                # depending of the value, region will have its Font
                 sick = danger_color.format(int((reg[1] - min_sick) // sick_step))
                 reg.append(sick)
                 delta_sick = danger_color.format(int((reg[2] - min_dsick) // dsick_step))
@@ -1460,8 +1484,8 @@ class iCovid (iCovidBase):
                 dead = '—'
 
                 # calculate color
-                aux_Colour = int(255 - ((0 if sick == '—' else sick) / color_step))
-                rgb = (255, aux_Colour, aux_Colour)
+                aux_Font = int(255 - ((0 if sick == '—' else sick) / color_step))
+                rgb = (255, aux_Font, aux_Font)
 
                 _regions += region_tmpl.format(tab * 7, region, test, sick, d_sick,
                                                recv, dead, *rgb, path_style, path)
@@ -1520,6 +1544,33 @@ class iCovid (iCovidBase):
 
         logger.debug('Файл "%s" вивантажено [%fс]' % (srcfile, duration))
 
+    def smtp_send(self, emails):
+        ''' Function sends emails using Google Mail Server '''
+        # run web files upload
+        logger.normal('Надсилання електронного листа ..')
+
+        # check if user entered SMTP credentials earlier
+        if not (self._smtp['email'] and self._smtp['password']):
+            # ask user to enter credentials for SMTP server
+            self._smtp['email'], self._smtp['password'] = self._login()
+            if not (self._smtp['email'] and self._smtp['password']):
+                logger.warning('Дані для входу в обліковий запис на надані')
+                return
+        else:
+            logger.normal('Автоматичне використання попередньої пошти та паролю')
+
+        # Create secure connection with server and send emails
+        start = time.time()
+        ctx = ssl.create_default_context()
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ctx) as server:
+            server.login(self._smtp['email'], self._smtp['password'])
+
+            for email in emails:
+                server.sendmail(self._smtp['email'], email.get_to(), email.get_message())
+
+        duration = time.time() - start
+        logger.success('Надіслано {} лист(ів) [{:.3f} c]'.format(len(emails), duration))
+
     def webpage_update(self, server):
         ''' Update web-page files through FTP server '''
         # generate HTML report
@@ -1528,13 +1579,13 @@ class iCovid (iCovidBase):
         logger.success('Веб-сторінку згенеровано')
 
         # run web files upload
-        logger.normal('Оновлення веб-сторінки розпочато ..')
+        logger.normal('Оновлення веб-сторінки ..')
 
         # check if user entered login and password earlier
-        if not (self._uname and self._upass):
+        if not (self._ftp['login'] and self._ftp['password']):
             # there is no all information, so request a new one from the user
-            self._uname, self._upass = self._login()
-            if not (self._uname and self._upass):
+            self._ftp['login'], self._ftp['password'] = self._login()
+            if not (self._ftp['login'] and self._ftp['password']):
                 logger.warning('Оновлення веб-сторінки скасовано')
                 return
         else:
@@ -1544,7 +1595,7 @@ class iCovid (iCovidBase):
         start = time.time()
         try:
             self.ftp.connect(server, 21)
-            self.ftp.login(self._uname, self._upass)
+            self.ftp.login(self._ftp['login'], self._ftp['password'])
         except Exception as e:
             logger.error('Не вдається приєднатись до FTP-сервера')
             return
@@ -1584,6 +1635,49 @@ class iCovid (iCovidBase):
         duration = time.time() - start
 
         logger.success('Веб-сторінку "%s" оновлено [%fс]' % (server, duration))
+
+    def prepare_error_report(self):
+        """ Funciton prepare HTML report regarsing update errors """
+        def screen_content(text):
+            """ Function replace special HTML symbols by altirnatives """
+            spec_symbols = {'<': '(', '>': ')'}
+            for ss, alt in spec_symbols.items():
+                text = text.replace(ss, alt)
+
+            return text
+
+        if not self.upd_errors:
+            # no errors happened
+            return
+
+        error_tmpl = """<p><strong>Помилка</strong><br/>{}<br/><br/><strong>Деталі</strong><br/><code>{}</code></p>"""
+
+        html_tmpl = """<html><body style="white-space: pre-line">
+            <div><img alt="⚠️" src=""> Під час автоматичного оновлення даних виникла неочікувана помилка.</div>
+            <table style="border-collapse: collapse; width: 800px;" border="1">
+                <tbody>
+                    <tr>
+                        <td style="width: 200px; text-align: center; padding: 5px;">Час</td>
+                        <td style="width: 600px; text-align: center; padding: 5px;">Помилка</td>
+                    </tr>
+                    <tr>
+                        <td style="width: 200px; text-align: center; vertical-align: text-top; padding: 5px">{}</td>
+                        <td style="width: 600px; text-align: justify; padding: 5px">{}</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div><img alt="📍" src=""> Мережева сторінка - <a href="http://covidinfo.zzz.com.ua/" target="_blank" rel="noopener">covidinfo.zzz.com.ua</a>.</div>
+            <div>З повагою,<br/>Команда "Вирій" <img alt="🔥" src=""></div>
+            </body>
+            </html>"""
+
+        errors = '<hr>'.join([error_tmpl.format(screen_content(error[0]), screen_content(error[1])) for error in self.upd_errors])
+
+        return html_tmpl.format(self.translate('eng', 'ukr', '{:%d-%b-%Y %H:%M:%S}'.format(datetime.now())), errors)
+
+    def add_error(self, error, details):
+        """ Function add some user errors to the errors list """
+        self.upd_errors.append([error, details])
 
 
 def help():
@@ -1640,37 +1734,50 @@ def main():
 
     else:
         logger.set_lvl(LogLevel.DEBUG if args.debug else LogLevel.NORMAL)
-        covid = iCovid()
+        logger.userless_mode(args.server)
+
+        # initialize iCovid object
+        covid = iCovid(args.server)
 
         while True:
             try:
+                # update database and print it to the CLI
                 covid.update()
                 print(covid)
 
                 if args.web_update:
+                    # run webpage update
                     covid.webpage_update('covidinfo.zzz.com.ua')
 
-                logger.success('Дані на сервері оновлено {:%d-%b-%Y %H:%M:%S}'.format(datetime.now()))
+                logger.success('Дані оновлено')
 
             except Exception as e:
                 # oops... something unexpectedly failed
-                logger.error('Не вдалось оновити дані на сервері {:%d-%b-%Y %H:%M:%S}'.format(datetime.now()))
-                print(e)
+                error_msg = 'При оновленні даних веб-сторінки щось пішло не так'
+                logger.error(error_msg)
+
+                tb_error = traceback.format_exc().split('\n')
+                tb_error = tb_error[-1:] + tb_error[:-1]
+                covid.add_error(error_msg, '\n'.join(tb_error))
+
+            # prepare email if there are any errors
+            content = covid.prepare_error_report()
+
+            if content:
+                # send an email
+                email = Email('sviytiv@gmail.com', '⛔️ Звіт про помилки оновлення даних', content)
+                covid.smtp_send([email])
+                logger.normal('Звіт про помилки надіслано')
 
             if not args.server:
                 # exit if user not enabled server mode
                 break
+
             else:
-                # time of pause before next request in seconds
-                period = 3600
-
                 # print delay till next request
-                period_h = int(period / 3600)
-                period_m = int((period - period_h * 3600) / 60)
-                period_s = int(period - period_h * 3600 - period_m * 60)
-                logger.normal('Наступний запит через {}г {}хв {}с'.format(period_h, period_m, period_s))
-
-                time.sleep(period)
+                logger.normal('Наступний запит буде о {:%H:%M:%S}'.format(datetime.now() + timedelta(hours=1)))
+                # sleep an hour before the next request
+                time.sleep(3600)
 
 
 if __name__ == '__main__':

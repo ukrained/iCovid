@@ -1,19 +1,22 @@
 # metadata
 __title__ = 'Common Utils Library'
-__version__ = '0.7.1[b]'
+__version__ = '0.8.0[b]'
 __release__ = '02 Nov 2020'
 __author__ = 'Alex Viytiv'
 
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
-class Colour:
-    ''' Colour class '''
+
+class Font:
+    ''' Font class '''
     NORMAL = '\033[0m'      # return normal font style
     BOLD = '\033[01m'       # make text bold
     DISABLE = '\033[02m'    # ???
     UNDERLINE = '\033[04m'  # underline text
     BLINK = '\033[05m'      # blinking text
     REVERSE = '\033[07m'    # ???
-    STRIKE = '\033[09m'     # put strikeline over text
+    STRIKE = '\033[09m'     # put strikeline over the text
     INVISIBLE = '\033[08m'  # ???
 
     # foreground colours
@@ -47,7 +50,7 @@ class Colour:
 
     def set(clr, msg):
         ''' Colorize message into '''
-        return clr + str(msg) + Colour.NORMAL
+        return clr + str(msg) + Font.NORMAL
 
 
 class LogLevel:
@@ -70,13 +73,13 @@ class LogLevel:
              TRACE: 'відстеження'}
 
     # color for each log level
-    Colour = {CRITICAL: Colour.bg.red,
-              ERROR: Colour.fg.red,
-              WARNING: Colour.fg.orange,
-              SUCCESS: Colour.fg.green,
-              NORMAL: Colour.fg.yellow,
-              DEBUG: Colour.fg.blue,
-              TRACE: Colour.fg.lightcyan}
+    colour = {CRITICAL: Font.bg.red,
+              ERROR: Font.fg.red,
+              WARNING: Font.fg.orange,
+              SUCCESS: Font.fg.green,
+              NORMAL: Font.fg.yellow,
+              DEBUG: Font.fg.blue,
+              TRACE: Font.fg.lightcyan}
 
 
 class Logger:
@@ -87,6 +90,7 @@ class Logger:
         :param gllvl: Global Logging Level
         '''
         self._gllvl = lvl
+        self._is_user_active = True
 
     def set_lvl(self, lvl):
         ''' Configure logging level
@@ -124,8 +128,8 @@ class Logger:
             # invalid log level
             return
 
-        prefix = '[%s%s%s] ' % (LogLevel.Colour[lvl], LogLevel.token[lvl],
-                                Colour.NORMAL)
+        prefix = '[%s%s%s] ' % (LogLevel.colour[lvl], LogLevel.token[lvl],
+                                Font.NORMAL)
 
         print(('' if raw else prefix) + str(msg), end=end)
 
@@ -163,6 +167,11 @@ class Logger:
         :param msg: user message
         :return: TRUE if approved, FALSE otherwise
         '''
+        if not self._is_user_active:
+            # send default reply if there is no user
+            self.normal('Ввімкнено режим "Без користувача". Виконується дія за умовчанням')
+            return default
+
         resp = input('> {}? [{}/{}] '.format(msg,
                                              'Y' if default else 'y',
                                              'n' if default else 'N'))
@@ -173,3 +182,26 @@ class Logger:
 
         self.warning('Недійсна відповідь "{}". Дія за умовчанням [{}]'.format(resp, default))
         return default
+
+    def userless_mode(self, enable):
+        """ Function is used to activate in logger userless mode """
+        self._is_user_active = False if enable else True
+        self.normal('Режим "Без користувача" {}'.format('ввімкнено' if enable else 'вимкнено'))
+
+
+class Email:
+    """ Object used to store email data """
+    def __init__(self, to_email, subject, msg, is_html=True):
+        self.message = MIMEMultipart('alternative')
+        self.message['To'] = to_email
+        self.message['Subject'] = subject
+
+        # Add HTML/plain-text parts to MIMEMultipart message
+        # The email client will try to render the last part first
+        self.message.attach(MIMEText(msg, 'html' if is_html else 'plain'))
+
+    def get_to(self):
+        return self.message['To']
+
+    def get_message(self):
+        return self.message.as_string()

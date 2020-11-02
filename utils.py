@@ -1,11 +1,11 @@
 # metadata
 __title__ = 'Common Utils Library'
-__version__ = '0.6.9[b]'
-__release__ = '17 Aug 2020'
+__version__ = '0.7.1[b]'
+__release__ = '02 Nov 2020'
 __author__ = 'Alex Viytiv'
 
 
-class colour:
+class Colour:
     ''' Colour class '''
     NORMAL = '\033[0m'      # return normal font style
     BOLD = '\033[01m'       # make text bold
@@ -47,10 +47,10 @@ class colour:
 
     def set(clr, msg):
         ''' Colorize message into '''
-        return clr + str(msg) + colour.NORMAL
+        return clr + str(msg) + Colour.NORMAL
 
 
-class logLevel:
+class LogLevel:
     ''' Logging level class '''
     CRITICAL = 0  # component, subsystem crash
     ERROR = 1     # unexpected flow behaviour
@@ -70,23 +70,35 @@ class logLevel:
              TRACE: 'відстеження'}
 
     # color for each log level
-    colour = {CRITICAL: colour.bg.red,
-              ERROR: colour.fg.red,
-              WARNING: colour.fg.orange,
-              SUCCESS: colour.fg.green,
-              NORMAL: colour.fg.yellow,
-              DEBUG: colour.fg.blue,
-              TRACE: colour.fg.lightcyan}
+    Colour = {CRITICAL: Colour.bg.red,
+              ERROR: Colour.fg.red,
+              WARNING: Colour.fg.orange,
+              SUCCESS: Colour.fg.green,
+              NORMAL: Colour.fg.yellow,
+              DEBUG: Colour.fg.blue,
+              TRACE: Colour.fg.lightcyan}
 
 
-class logger:
+class Logger:
     ''' Logger object provide logging subsystem '''
-    def __init__(self, gllvl):
+    def __init__(self, lvl):
         ''' Constructor
 
         :param gllvl: Global Logging Level
         '''
-        self._gllvl = gllvl
+        self._gllvl = lvl
+
+    def set_lvl(self, lvl):
+        ''' Configure logging level
+
+        :param lvl: desired user logging level
+        '''
+        if lvl not in LogLevel.token:
+            # desired log level is not valid
+            return False
+
+        self._gllvl = lvl
+        return True
 
     def get_lvl(self):
         return self._gllvl
@@ -108,42 +120,42 @@ class logger:
         :param end: message end sequence
         '''
 
-        if lvl > self._gllvl or lvl < logLevel.CRITICAL:
+        if lvl > self._gllvl or lvl < LogLevel.CRITICAL:
             # invalid log level
             return
 
-        prefix = '[%s%s%s] ' % (logLevel.colour[lvl], logLevel.token[lvl],
-                                colour.NORMAL)
+        prefix = '[%s%s%s] ' % (LogLevel.Colour[lvl], LogLevel.token[lvl],
+                                Colour.NORMAL)
 
         print(('' if raw else prefix) + str(msg), end=end)
 
     def critical(self, msg, end='.\n'):
         ''' Print critical level log '''
-        self.log(logLevel.CRITICAL, msg, end=end)
+        self.log(LogLevel.CRITICAL, msg, end=end)
 
     def error(self, msg, end='.\n'):
         ''' Print error level log '''
-        self.log(logLevel.ERROR, msg, end=end)
+        self.log(LogLevel.ERROR, msg, end=end)
 
     def warning(self, msg, end='.\n'):
         ''' Print warning level log '''
-        self.log(logLevel.WARNING, msg, end=end)
+        self.log(LogLevel.WARNING, msg, end=end)
 
     def success(self, msg, end='.\n'):
         ''' Print success level log '''
-        self.log(logLevel.SUCCESS, msg, end=end)
+        self.log(LogLevel.SUCCESS, msg, end=end)
 
     def normal(self, msg, end='.\n'):
         ''' Print normal level log '''
-        self.log(logLevel.NORMAL, msg, end=end)
+        self.log(LogLevel.NORMAL, msg, end=end)
 
     def debug(self, msg, end='.\n'):
         ''' Print debug level log '''
-        self.log(logLevel.DEBUG, msg, end=end)
+        self.log(LogLevel.DEBUG, msg, end=end)
 
     def trace(self, msg, end='.\n'):
         ''' Print trace level log '''
-        self.log(logLevel.TRACE, msg, end=end)
+        self.log(LogLevel.TRACE, msg, end=end)
 
     def approve(self, msg, default=False):
         ''' Get user approve

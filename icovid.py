@@ -2,8 +2,8 @@
 
 # metadata
 __title__ = 'iCovid Monitoring Utility'
-__version__ = '2.4.2'
-__release__ = '30 Oct 2020'
+__version__ = '2.5.0'
+__release__ = '02 Nov 2020'
 __author__ = 'Alex Viytiv'
 
 # modules
@@ -22,8 +22,12 @@ from lxml import html
 from ftplib import FTP
 from getpass import getpass
 from datetime import datetime, date, timedelta
-from utils import colour, logLevel, logger
+from utils import Colour, LogLevel, Logger
 from urllib.parse import quote
+
+
+# global logger object
+logger = Logger(LogLevel.NORMAL)
 
 
 class htmlWorker:
@@ -78,29 +82,27 @@ class htmlWorker:
 class dbWorker:
     ''' DataBase manager '''
 
-    def __init__(self, path, log_level=logLevel.NORMAL):
+    def __init__(self, path):
         ''' DB Constructor '''
         self._path = path
         self.__db = {}
         self.__auto_save = True
-
-        self.logger = logger(log_level)
         self._upload()
 
     def _upload(self):
         ''' Upload DB from the file '''
         if not os.path.isfile(self._path):
-            self.logger.error('Файл БД \'{}\' не існує'.format(self._path))
-            if not self.logger.approve('Створити БД'):
-                self.logger.critical('Заборонена робота без БД')
+            logger.error('Файл БД \'{}\' не існує'.format(self._path))
+            if not logger.approve('Створити БД'):
+                logger.critical('Заборонена робота без БД')
                 self.__auto_save = False
                 exit(1)
             return
 
         if self.__db:
-            self.logger.warning('БД вже ініціалізована')
-            if not self.logger.approve('Перезаписати вміст БД'):
-                self.logger.normal('БД не перезаписана')
+            logger.warning('БД вже ініціалізована')
+            if not logger.approve('Перезаписати вміст БД'):
+                logger.normal('БД не перезаписана')
                 return
 
         with open(self._path, 'r+') as fp:
@@ -114,23 +116,23 @@ class dbWorker:
             except Exception as e:
                 # failure processing
                 self.__auto_save = False
-                self.logger.error('Помилка при підвантаженні БД')
+                logger.error('Помилка при підвантаженні БД')
                 raise e
 
             # Create backup file
             with open(self._path + '.backup', 'w+') as fpb:
                 fpb.write(backup_data)
 
-            self.logger.debug('Створено резервну копію даних "%s"' % (self._path + '.backup'))
+            logger.debug('Створено резервну копію даних "%s"' % (self._path + '.backup'))
 
-        self.logger.success('БД підвантажено')
+        logger.success('БД підвантажено')
 
     def save(self):
         ''' Load DB to the file '''
         with open(self._path, 'w+') as fp:
             json.dump(self.__db, fp, indent=4, ensure_ascii=False)
 
-        self.logger.normal('БД збережено')
+        logger.normal('БД збережено')
 
     def update(self, key, config):
         ''' Update DB entries
@@ -144,7 +146,7 @@ class dbWorker:
         k_regn = key.get('region')
 
         if not k_date:
-            self.logger.error('Ключ "date" обов\'язковий')
+            logger.error('Ключ "date" обов\'язковий')
             return
         elif not self.__db.get(k_date):
             # create if not exist
@@ -161,15 +163,15 @@ class dbWorker:
                     self.__db[k_date][k_cont]['regions'][k_regn] = {}
 
                 self.__db[k_date][k_cont]['regions'][k_regn] = config
-                self.logger.debug('БД регіону {} оновлено'.format(k_regn))
+                logger.debug('БД регіону {} оновлено'.format(k_regn))
                 return
 
             self.__db[k_date][k_cont] = config
-            self.logger.debug('БД країни {} оновлено'.format(k_cont))
+            logger.debug('БД країни {} оновлено'.format(k_cont))
             return
 
         self.__db[k_date] = config
-        self.logger.debug('БД дати {} оновлено'.format(k_date))
+        logger.debug('БД дати {} оновлено'.format(k_date))
         return
 
     def get(self, key, default=None):
@@ -184,7 +186,7 @@ class dbWorker:
         k_regn = key.get('region')
 
         if not k_date:
-            self.logger.error('Ключ "date" обов\'язковий')
+            logger.error('Ключ "date" обов\'язковий')
             return None
         elif not self.__db.get(k_date):
             return default
@@ -223,10 +225,8 @@ class dbWorker:
 
 class iCovidBase:
     ''' Base class with common functionality '''
-    def __init__(self, log_level=logLevel.NORMAL):
-        self.logger = logger(log_level)
-        self.db = dbWorker('icovid.db', self.logger.get_lvl())
-
+    def __init__(self):
+        self.db = dbWorker('icovid.db')
         self._vocab = {}
         self._load_vocabs()
 
@@ -243,7 +243,7 @@ class iCovidBase:
             with open(vocab, 'r+') as fp:
                 self._vocab[slang][dlang] = json.load(fp)
 
-            self.logger.success('Словник "%s-%s" підвантажено' % (slang, dlang))
+            logger.success('Словник "%s-%s" підвантажено' % (slang, dlang))
 
     def _web_request(self, url, headers={}):
         ''' Function perform HTML page request
@@ -254,10 +254,10 @@ class iCovidBase:
         try:
             html = requests.get(url, headers=headers).text
         except Exception as e:
-            self.logger.warning('Недійсний сертифікат сервера "{}"'.format(url))
-            self.logger.debug(str(e))
-            if not self.logger.approve('Не перевіряти сертифікат'):
-                self.logger.critical('Помилка отримання даних')
+            logger.warning('Недійсний сертифікат сервера "{}"'.format(url))
+            logger.debug(str(e))
+            if not logger.approve('Не перевіряти сертифікат'):
+                logger.critical('Помилка отримання даних')
                 self.__auto_save = False
                 exit(1)
 
@@ -285,17 +285,19 @@ class iCovidBase:
                 with open(vocab, 'w+') as fp:
                     json.dump(self._vocab[slang][dlang], fp, indent=4, ensure_ascii=False)
 
-        self.logger.normal('Словники збережено')
+        logger.normal('Словники збережено')
 
 
 class iCovid (iCovidBase):
-    def __init__(self, debug=False):
+    def __init__(self):
         ''' Constructor '''
-        super().__init__(logLevel.TRACE if debug else logLevel.NORMAL)
+        super().__init__()
 
         # initialize FTP object
         self.ftp = FTP()
         self.ftp.set_debuglevel(0)
+        self._uname = ''
+        self._upass = ''
 
     def update(self):
         ''' Update latest data '''
@@ -307,7 +309,7 @@ class iCovid (iCovidBase):
         curr_date = datetime.now().strftime("%d %b %Y")
 
         # run update data
-        self.logger.normal('Оновлюємо дані ..')
+        logger.normal('Оновлюємо дані ..')
         start = time.time()
 
         for upd_cb in upd_cbs:
@@ -318,14 +320,14 @@ class iCovid (iCovidBase):
                 self.db.update({'date': curr_date, 'country': data['Name']}, data)
                 upd_duration = time.time() - upd_start
 
-                self.logger.success('Дані з %s оновлені [%fс]' % (data['Name'], upd_duration))
+                logger.success('Дані з %s оновлені [%fс]' % (data['Name'], upd_duration))
             except Exception as e:
-                self.logger.error('Помилка при оновленні даних: %s' % upd_cb)
+                logger.error('Помилка при оновленні даних: %s' % upd_cb)
                 raise e
                 continue
 
         duration = time.time() - start
-        self.logger.debug('Оновлення даних завершено [%fс]' % duration)
+        logger.debug('Оновлення даних завершено [%fс]' % duration)
 
     def _upd_ukr(self):
         config = {'Name': 'Україна', 'Code': 'ukr',
@@ -346,12 +348,12 @@ class iCovid (iCovidBase):
 
     def __upd_ukr_total(self, config):
         # covid19.gov.ua
-        self.logger.normal(' - Збір загальних даних з covid19.gov.ua ..')
+        logger.normal(' - Збір загальних даних з covid19.gov.ua ..')
         page = self._web_request('https://covid19.gov.ua/en/')
 
         divs = self._html_get_node(page, './/div[contains(@class, \'one-field\') and contains(@class, \'light-box\') and contains(@class, \'info-count\')]')
         if len(divs) != 4:
-            self.logger.error('Неочікуване число елементів - %d' % len(divs))
+            logger.error('Неочікуване число елементів - %d' % len(divs))
             exit(1)
 
         for i, case in enumerate(['Sick', 'Recovered', 'Dead', 'Tested']):
@@ -362,7 +364,7 @@ class iCovid (iCovidBase):
     def __upd_ukr_regions(self, config):
         # moz.gov.ua
         # detailed - https://index.minfin.com.ua/ua/reference/coronavirus/ukraine/
-        self.logger.normal(' - Збір даних про регіони з index.minfin.com.ua ..')
+        logger.normal(' - Збір даних про регіони з index.minfin.com.ua ..')
         page = self._web_request('https://index.minfin.com.ua/ua/reference/coronavirus/ukraine/')
 
         # initial regions data
@@ -437,7 +439,7 @@ class iCovid (iCovidBase):
 
     def __upd_ulv_total(self, config):
         # covid19.gov.ua
-        self.logger.normal(' - Збір загальних даних з index.minfin.com.ua ..')
+        logger.normal(' - Збір загальних даних з index.minfin.com.ua ..')
         page = self._web_request('https://index.minfin.com.ua/ua/reference/coronavirus/ukraine/')
 
         rows = self._html_get_node(page, './/div[@class="compact-table expand-table"]//table//tr')
@@ -465,7 +467,7 @@ class iCovid (iCovidBase):
                 break
 
         if target_link:
-            self.logger.debug('Цільове посилання: {} ..'.format(target_link))
+            logger.debug('Цільове посилання: {} ..'.format(target_link))
             # get the page with tested persons quanity
             page = self._web_request(target_link, headers=hdrs)
             paragraphs = self._html_get_node(page, './/div[@class="item-page news-page"]//div//p')
@@ -480,7 +482,7 @@ class iCovid (iCovidBase):
     def __upd_ulv_regions(self, config):
         # moz.gov.ua
         # detailed - https://index.minfin.com.ua/ua/reference/coronavirus/ukraine/
-        self.logger.normal(' - Збір даних про регіони з ses.lviv.ua ..')
+        logger.normal(' - Збір даних про регіони з ses.lviv.ua ..')
         # page = self._web_request(tested_links[0])
 
         # initial regions data
@@ -544,7 +546,7 @@ class iCovid (iCovidBase):
                 break
 
         if target_link:
-            self.logger.debug('Цільове посилання: {} ..'.format(target_link))
+            logger.debug('Цільове посилання: {} ..'.format(target_link))
             # get the page with regions sick quanity
             page = self._web_request(target_link, headers=hdrs)
             paragraphs = self._html_get_node(page, './/div[@class="item-page news-page"]//div//p')
@@ -587,7 +589,7 @@ class iCovid (iCovidBase):
     def __upd_isr_total(self, config):
         # govextra.gov.il
         # Palestine: https://corona.ps/
-        self.logger.normal(' - Збір загальних даних з worldometers.info ..')
+        logger.normal(' - Збір загальних даних з worldometers.info ..')
         page = self._web_request('https://www.worldometers.info/coronavirus/')
 
         countries = self._html_get_node(page, './/table[@id="main_table_countries_today"]/tbody/tr')
@@ -607,7 +609,7 @@ class iCovid (iCovidBase):
 
     def __upd_isr_regions(self, config):
         # news.google.com
-        self.logger.normal(' - Збір даних про регіони з news.google.com ..')
+        logger.normal(' - Збір даних про регіони з news.google.com ..')
         page = self._web_request('https://news.google.com/covid19/map?hl=uk&gl=UA&ceid=UA%3Auk&mid=%2Fm%2F03spz')
 
         # initial regions data
@@ -687,7 +689,7 @@ class iCovid (iCovidBase):
 
     def __upd_pol_total(self, config):
         # news.google.com
-        self.logger.normal(' - Збір загальних даних з worldometers.info ..')
+        logger.normal(' - Збір загальних даних з worldometers.info ..')
         page = self._web_request('https://www.worldometers.info/coronavirus/')
 
         data = None
@@ -709,7 +711,7 @@ class iCovid (iCovidBase):
 
     def __upd_pol_regions(self, config):
         # news.google.com
-        self.logger.normal(' - Збір даних про регіони з www.gov.pl ..')
+        logger.normal(' - Збір даних про регіони з www.gov.pl ..')
         page = self._web_request('https://www.gov.pl/web/koronawirus/wykaz-zarazen-koronawirusem-sars-cov-2')
 
         # initial regions data
@@ -773,7 +775,7 @@ class iCovid (iCovidBase):
     def __upd_rus_total(self, config):
         # news.google.com
         # https://covid.ourworldindata.org/data/owid-covid-data.json
-        self.logger.normal(' - Збір загальних даних з covid19.rosminzdrav.ru ..')
+        logger.normal(' - Збір загальних даних з covid19.rosminzdrav.ru ..')
         page = self._web_request('https://covid19.rosminzdrav.ru/wp-json/api/mapdata/')
         data = json.loads(page)['Items']
 
@@ -798,7 +800,7 @@ class iCovid (iCovidBase):
 
     def __upd_rus_regions(self, config):
         # news.google.com
-        self.logger.normal(' - Збір даних про регіони з covid19.rosminzdrav.ru ..')
+        logger.normal(' - Збір даних про регіони з covid19.rosminzdrav.ru ..')
         page = self._web_request('https://covid19.rosminzdrav.ru/wp-json/api/mapdata/')
         data = json.loads(page)['Items']
 
@@ -979,7 +981,7 @@ class iCovid (iCovidBase):
 
     def __upd_hug_total(self, config):
         # news.google.com
-        self.logger.normal(' - Збір загальних даних з koronavirus.gov.hu ..')
+        logger.normal(' - Збір загальних даних з koronavirus.gov.hu ..')
         page = self._web_request('https://koronavirus.gov.hu/')
 
         recv_pest = self._html_get_node(page, './/div[@id="api-gyogyult-pest"]')[0]
@@ -1001,7 +1003,7 @@ class iCovid (iCovidBase):
 
     def __upd_hug_regions(self, config):
         # news.google.com
-        self.logger.normal(' - Збір даних про регіони з news.google.com ..')
+        logger.normal(' - Збір даних про регіони з news.google.com ..')
         page = self._web_request('https://news.google.com/covid19/map?hl=uk&gl=UA&ceid=UA%3Auk&mid=%2Fm%2F03gj2')
 
         # initial regions data
@@ -1069,7 +1071,7 @@ class iCovid (iCovidBase):
 
     def __upd_rom_total(self, config):
         # news.google.com
-        self.logger.normal(' - Збір загальних даних з mae.ro ..')
+        logger.normal(' - Збір загальних даних з mae.ro ..')
 
         # headers required to get access to the mae.ro web-page
         hdrs = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'}
@@ -1086,7 +1088,7 @@ class iCovid (iCovidBase):
                 break
 
         if target_link:
-            self.logger.debug('Цільове посилання: {} ..'.format(target_link))
+            logger.debug('Цільове посилання: {} ..'.format(target_link))
             # get the page with tested persons quanity
             page = self._web_request(target_link, headers=hdrs)
             paragraphs = self._html_get_node(page, './/div[@class="my-8 break-words rich-text"]//p')
@@ -1109,7 +1111,7 @@ class iCovid (iCovidBase):
 
     def __upd_rom_regions(self, config):
         # news.google.com
-        self.logger.normal(' - Збір даних про регіони з datelazi.ro ..')
+        logger.normal(' - Збір даних про регіони з datelazi.ro ..')
         page = self._web_request('https://datelazi.ro/latestData.json')
         data = json.loads(page)['currentDayStats']['countyInfectionsNumbers']
 
@@ -1179,7 +1181,7 @@ class iCovid (iCovidBase):
             if region == '-':
                 # unproceeded persons will be equally divided between regions
                 unknown = data[region]
-                self.logger.debug('Невідомий регіон у %d осіб' % unknown)
+                logger.debug('Невідомий регіон у %d осіб' % unknown)
 
                 # common shared number
                 common = int(data[region] / len(config['Regions']))
@@ -1224,7 +1226,7 @@ class iCovid (iCovidBase):
                                                reverse=True)}
 
             # country information
-            text += '\n   [ %s ] ' % colour.set(colour.fg.cyan, country)
+            text += '\n   [ %s ] ' % Colour.set(Colour.fg.cyan, country)
             text += 'Населення {:,} людей на {:,} км2 ({:.2f} л/км2)\n' \
                     .format(cfg['Population'], cfg['Area'],
                             cfg['Population'] / cfg['Area'])
@@ -1235,39 +1237,39 @@ class iCovid (iCovidBase):
 
             d_test = cfg['Tested'] - ycfg.get('Tested', cfg['Tested'])
             d_recv = cfg['Recovered'] - ycfg.get('Recovered', cfg['Recovered'])
-            text += block.format(cfg['Tested'], colour.set(colour.fg.grey, 'Перевірені'), d_test,
-                                 cfg['Recovered'], colour.set(colour.fg.green, 'Одужали'), d_recv)
+            text += block.format(cfg['Tested'], Colour.set(Colour.fg.grey, 'Перевірені'), d_test,
+                                 cfg['Recovered'], Colour.set(Colour.fg.green, 'Одужали'), d_recv)
 
             d_sick = cfg['Sick'] - ycfg.get('Sick', cfg['Sick'])
             d_dead = cfg['Dead'] - ycfg.get('Dead', cfg['Dead'])
-            text += block.format(cfg['Sick'], colour.set(colour.fg.yellow, 'Хворі'), d_sick,
-                                 cfg['Dead'], colour.set(colour.fg.red, 'Померли'), d_dead)
+            text += block.format(cfg['Sick'], Colour.set(Colour.fg.yellow, 'Хворі'), d_sick,
+                                 cfg['Dead'], Colour.set(Colour.fg.red, 'Померли'), d_dead)
 
             # separator
             text += ' +{:-<76}+\n'.format('')
 
             # regions information
             if regions:
-                # 5 zones coloured by unique colour
-                zones = {0: colour.fg.white, 1: colour.fg.yellow,
-                         2: colour.fg.orange, 3: colour.fg.lightred,
-                         4: colour.fg.red}
+                # 5 zones Coloured by unique Colour
+                zones = {0: Colour.fg.white, 1: Colour.fg.yellow,
+                         2: Colour.fg.orange, 3: Colour.fg.lightred,
+                         4: Colour.fg.red}
                 min_sick = min(regions.values())
                 sick_step = (max(regions.values()) + 1 - min_sick) / 5
 
                 min_rdsick = min(rd_sick.values())
                 rdsick_step = (max(rd_sick.values()) + 1 - min_rdsick) / 5
 
-                text += '   Рівні небезпеки: %s\n' % ' '.join(colour.set(zones[i], str(i)) for i in range(5))
+                text += '   Рівні небезпеки: %s\n' % ' '.join(Colour.set(zones[i], str(i)) for i in range(5))
                 text += ' +{:-<76}+\n'.format('')
 
                 for region, sick in regions.items():
-                    # depending of the value, region will have its colour
+                    # depending of the value, region will have its Colour
                     clr = zones[(rd_sick[region] - min_rdsick) // rdsick_step]
-                    ysick = colour.set(clr, '%+d' % rd_sick[region])
+                    ysick = Colour.set(clr, '%+d' % rd_sick[region])
 
                     clr = zones[(sick - min_sick) // sick_step]
-                    region = colour.set(clr, region) + ' '
+                    region = Colour.set(clr, region) + ' '
                     text += '   {:.<68} {:<6} | {:<5}\n'.format(region, sick, ysick)
 
             else:
@@ -1338,7 +1340,7 @@ class iCovid (iCovidBase):
                 data_regs.append([region, sick, d_sick])
                 #data_regs.append(data_reg_tmpl.format(region, sick, d_sick))
 
-            # 5 zones coloured by unique colour
+            # 5 zones Coloured by unique Colour
             danger_color = "dtrr_danger{}"
             min_sick = min([it[1] for it in data_regs])
             sick_step = (max([it[1] for it in data_regs]) + 1 - min_sick) / 5
@@ -1347,7 +1349,7 @@ class iCovid (iCovidBase):
             dsick_step = (max([it[2] for it in data_regs]) + 1 - min_dsick) / 5
 
             for reg in data_regs:
-                # depending of the value, region will have its colour
+                # depending of the value, region will have its Colour
                 sick = danger_color.format(int((reg[1] - min_sick) // sick_step))
                 reg.append(sick)
                 delta_sick = danger_color.format(int((reg[2] - min_dsick) // dsick_step))
@@ -1458,8 +1460,8 @@ class iCovid (iCovidBase):
                 dead = '—'
 
                 # calculate color
-                aux_colour = int(255 - ((0 if sick == '—' else sick) / color_step))
-                rgb = (255, aux_colour, aux_colour)
+                aux_Colour = int(255 - ((0 if sick == '—' else sick) / color_step))
+                rgb = (255, aux_Colour, aux_Colour)
 
                 _regions += region_tmpl.format(tab * 7, region, test, sick, d_sick,
                                                recv, dead, *rgb, path_style, path)
@@ -1500,8 +1502,8 @@ class iCovid (iCovidBase):
             username = input(' [запит даних] > ім\'я користувача: ')
             password = getpass(' [запит даних] > пароль %s: ' % username)
         except KeyboardInterrupt:
-            self.logger.print('', end='\n')
-            self.logger.debug('Дані користувача не надано')
+            logger.print('', end='\n')
+            logger.debug('Дані користувача не надано')
             return (None, None)
 
         return (username, password)
@@ -1516,31 +1518,35 @@ class iCovid (iCovidBase):
             self.ftp.storbinary('STOR %s' % ftp_path(srcfile), f, 1024)
         duration = time.time() - start
 
-        self.logger.debug('Файл "%s" вивантажено [%fс]' % (srcfile, duration))
+        logger.debug('Файл "%s" вивантажено [%fс]' % (srcfile, duration))
 
     def webpage_update(self, server):
         ''' Update web-page files through FTP server '''
         # generate HTML report
-        self.logger.normal('Генерування веб-сторінки ..')
+        logger.normal('Генерування веб-сторінки ..')
         self._html_report()
-        self.logger.success('Веб-сторінку згенеровано')
+        logger.success('Веб-сторінку згенеровано')
 
         # run web files upload
-        self.logger.normal('Оновлення веб-сторінки розпочато ..')
+        logger.normal('Оновлення веб-сторінки розпочато ..')
 
-        # get user data
-        uname, upass = self._login()
-        if not (uname and upass):
-            self.logger.warning('Оновлення веб-сторінки скасовано')
-            return
+        # check if user entered login and password earlier
+        if not (self._uname and self._upass):
+            # there is no all information, so request a new one from the user
+            self._uname, self._upass = self._login()
+            if not (self._uname and self._upass):
+                logger.warning('Оновлення веб-сторінки скасовано')
+                return
+        else:
+            logger.normal('Автоматичне використання попередніх логіну та паролю')
 
         # setup FTP connection
         start = time.time()
         try:
             self.ftp.connect(server, 21)
-            self.ftp.login(uname, upass)
+            self.ftp.login(self._uname, self._upass)
         except Exception as e:
-            self.logger.error('Не вдається приєднатись до FTP-сервера')
+            logger.error('Не вдається приєднатись до FTP-сервера')
             return
 
         # configure copy destination
@@ -1567,17 +1573,17 @@ class iCovid (iCovidBase):
                      './report/flags/flag_rom.jpg']
 
         duration = time.time() - start
-        self.logger.normal('Приєднано до FTP-сервера [%fс]' % duration)
+        logger.normal('Приєднано до FTP-сервера [%fс]' % duration)
 
         # copy files
-        self.logger.normal('Починаємо надсилання файлів ...', end='\r')
+        logger.normal('Починаємо надсилання файлів ...', end='\r')
         start = time.time()
         for i, wfile in enumerate(web_files, 1):
             self._ftp_upload(wfile)
-            self.logger.normal('Наділано на сервер {} з {} файлів ...'.format(i, len(web_files)), end='\r' if wfile != web_files[-1] else '\n')
+            logger.normal('Наділано на сервер {} з {} файлів ...'.format(i, len(web_files)), end='\r' if wfile != web_files[-1] else '\n')
         duration = time.time() - start
 
-        self.logger.success('Веб-сторінку "%s" оновлено [%fс]' % (server, duration))
+        logger.success('Веб-сторінку "%s" оновлено [%fс]' % (server, duration))
 
 
 def help():
@@ -1619,6 +1625,7 @@ def help():
 def main():
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument('-w', '--web_update',  action='store_true')
+    parser.add_argument('-s', '--server', action='store_true')
     parser.add_argument('-d', '--debug', action='store_true')
     parser.add_argument('-h', '--help', action='store_true')
 
@@ -1632,12 +1639,38 @@ def main():
         help()
 
     else:
-        covid = iCovid(debug=args.debug)
-        covid.update()
-        print(covid)
+        logger.set_lvl(LogLevel.DEBUG if args.debug else LogLevel.NORMAL)
+        covid = iCovid()
 
-        if args.web_update:
-            covid.webpage_update('covidinfo.zzz.com.ua')
+        while True:
+            try:
+                covid.update()
+                print(covid)
+
+                if args.web_update:
+                    covid.webpage_update('covidinfo.zzz.com.ua')
+
+                logger.success('Дані на сервері оновлено {:%d-%b-%Y %H:%M:%S}'.format(datetime.now()))
+
+            except Exception as e:
+                # oops... something unexpectedly failed
+                logger.error('Не вдалось оновити дані на сервері {:%d-%b-%Y %H:%M:%S}'.format(datetime.now()))
+                print(e)
+
+            if not args.server:
+                # exit if user not enabled server mode
+                break
+            else:
+                # time of pause before next request in seconds
+                period = 3600
+
+                # print delay till next request
+                period_h = int(period / 3600)
+                period_m = int((period - period_h * 3600) / 60)
+                period_s = int(period - period_h * 3600 - period_m * 60)
+                logger.normal('Наступний запит через {}г {}хв {}с'.format(period_h, period_m, period_s))
+
+                time.sleep(period)
 
 
 if __name__ == '__main__':

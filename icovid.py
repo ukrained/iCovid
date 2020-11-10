@@ -2,8 +2,8 @@
 
 # metadata
 __title__ = 'iCovid Monitoring Utility'
-__version__ = '2.6.10'
-__release__ = '03 Nov 2020'
+__version__ = '2.6.14'
+__release__ = '10 Nov 2020'
 __author__ = 'Alex Viytiv'
 
 # modules
@@ -258,7 +258,7 @@ class iCovidBase:
         except Exception as e:
             logger.warning('Недійсний сертифікат сервера "{}"'.format(url))
             logger.debug(str(e))
-            if not logger.approve('Не перевіряти сертифікат'):
+            if not logger.approve('Не перевіряти сертифікат', default=True):
                 logger.critical('Помилка отримання даних')
                 self.__auto_save = False
                 exit(1)
@@ -699,7 +699,7 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 650 600', 'ViewBoxLineSz': 0.8,
                   'Population': 37851327, 'Area': 312679,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 60000, 'Description': '', 'Cure': 1,
+                  'Peak': 80000, 'Description': '', 'Cure': 1,
                   'Regions': {}}
 
         config['Description'] = 'Держава в Центральній Європі. За даними перепису населення, що відбувся у 2015 році, у країні проживало понад 38,5 мільйонів осіб.<br><br>Польща є п&apos;ятою за кількістю населення країною ЄС, дев&apos;ятою в Європі за площею та восьмою за населенням. Близько 61 % населення проживає в містах.'

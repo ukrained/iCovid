@@ -320,7 +320,7 @@ function update_region_stats(name)
     $('#psi_area').attr('class', 'ps_marker dtrr_danger' + danger_lvl);
 
     // Month-sick prognose = sick * spread_coef
-    psm_popl = Math.round((parseInt($('#total').attr('sick')) * psm_spread).toFixed(2));
+    psm_popl = Math.round((parseInt($('#total').attr('sick')) * (psm_spread + (psm_spread - 1.0) * 30.0)).toFixed(2));
     danger_lvl = min_max_level_get(0, parseInt($('#total').attr('sick')) * 2, 5, psm_popl);
     $('#psm_popl').html(psm_popl + ' людей');
     $('#psi_popl').attr('class', 'ps_marker dtrr_danger' + danger_lvl);

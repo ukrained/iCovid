@@ -2,8 +2,8 @@
 
 # metadata
 __title__ = 'iCovid Monitoring Utility'
-__version__ = '2.6.16'
-__release__ = '18 Nov 2020'
+__version__ = '2.7.5'
+__release__ = '28 Dec 2020'
 __author__ = 'Alex Viytiv'
 
 # modules
@@ -358,12 +358,13 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 640 410', 'ViewBoxLineSz': 0.7,
                   'Population': 43762985, 'Area': 603628,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 50000, 'Description': '', 'Cure': 2,
+                  'Peak': 65000, 'Description': '', 'Cure': 4,
                   'Regions': {}}
 
         config['Description'] = 'Розташована в Східній та частково в Центральній Європі, у південно-західній частині Східноєвропейської рівнини.<br><br>Держава-правонаступниця УНР, Гетьманщини, Королівства Руського та Київської Русі.<br><br>Найбільша за площею країна з тих, чия територія повністю лежить у Європі.'
 
-        # cure: https://www.president.gov.ua/news/ukrayina-rozpochinaye-klinichni-doslidzhennya-preparatu-sho-60777
+        # cure 2: https://www.president.gov.ua/news/ukrayina-rozpochinaye-klinichni-doslidzhennya-preparatu-sho-60777
+        # cure 4: https://www.president.gov.ua/en/news/ukrayina-vede-peregovori-z-predstavnikami-covax-stosovno-dos-65217
 
         config = self.__upd_ukr_total(config)
         config = self.__upd_ukr_regions(config)
@@ -450,10 +451,13 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 1300 1300', 'ViewBoxLineSz': 2,
                   'Population': 2529608, 'Area': 21833,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 5000, 'Description': '', 'Cure': 0,
+                  'Peak': 5000, 'Description': '', 'Cure': 4,
                   'Regions': {}}
 
         config['Description'] = 'Одна з трьох областей історико-культурного регіону Галичина, частини Карпатського регіону.<br><br>Одна з найрозвиненіших областей в економічному, туристичному, культурному та науковому напрямках.'
+
+        # cure 2: https://www.president.gov.ua/news/ukrayina-rozpochinaye-klinichni-doslidzhennya-preparatu-sho-60777
+        # cure 4: https://www.president.gov.ua/en/news/ukrayina-vede-peregovori-z-predstavnikami-covax-stosovno-dos-65217
 
         config = self.__upd_ulv_total(config)
         config = self.__upd_ulv_regions(config)
@@ -496,8 +500,8 @@ class iCovid (iCovidBase):
             paragraphs = self._html_get_node(page, './/div[@class="item-page news-page"]//div//p')
 
             for p in paragraphs:
-                if p.text and 'Всього проведено' in p.text.strip():
-                    config['Tested'] = int(p.text.split()[2])
+                if p.text_content() and 'Всього проведено' in p.text_content().strip():
+                    config['Tested'] = int(p.text_content().split()[2])
                     break
 
         return config
@@ -572,17 +576,18 @@ class iCovid (iCovidBase):
             logger.debug('Цільове посилання: {} ..'.format(target_link))
             # get the page with regions sick quanity
             page = self._web_request(target_link, headers=hdrs)
-            paragraphs = self._html_get_node(page, './/div[@class="item-page news-page"]//div//p')
+            # extract text content of each data node
+            paragraphs = [p.text_content() for p in self._html_get_node(page, './/div[@class="item-page news-page"]//div//p')]
 
-            for p in paragraphs:
-                if not p.text:
+            for ptext in paragraphs:
+                if not ptext:
                     # no text in the paragraph
                     continue
 
                 for k, v in sub_regions_mapping.items():
                     # look for the region in the aragraph text
-                    if k in p.text:
-                        local_sick = int(p.text.split('/')[0].replace('–', ' ').replace('-', ' ').split()[-1])
+                    if k in ptext:
+                        local_sick = int(ptext.split('/')[0].replace('–', ' ').replace('-', ' ').split()[-1])
                         config['Regions'][v] += local_sick
                         break
 
@@ -593,13 +598,14 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 250 800', 'ViewBoxLineSz': 1.0,
                   'Population': 8638917, 'Area': 20770,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 70000, 'Description': '', 'Cure': 3,
+                  'Peak': 80000, 'Description': '', 'Cure': 6,
                   'Regions': {},
-                  'vii': ['☣️ Дані з регіонів Ізраїлю відсутні у відкритому доступі.<br><br>👉 Публікація останніх відкритих даних відбулась 30 квітня 2020 року.<br><br>👉 Регіональний розподіл виконаний рівномірно на основі розподілу кількості населення у регіонах.', '☣️']}
+                  'vii': ['🚫 Дані з регіонів Ізраїлю відсутні у відкритому доступі.<br><br>👉 Публікація останніх відкритих даних відбулась 30 квітня 2020 року.<br><br>👉 Регіональний розподіл виконаний рівномірно на основі розподілу кількості населення у регіонах.', '🚫']}
 
         config['Description'] = 'Розташований на східному узбережжі Середземного моря. Незалежність проголошено 14 травня 1948 року (5 іяра 5708 року).<br><br>Ізраїль є єврейською державою. Упродовж трьох тисячоліть слово «Ізраїль» позначає Землю Ізраїльську (івр. אֶרֶץ יִשְׂרָאֵל‎, Е́рец-Їсрае́ль) і весь єврейський народ.<br><br>Джерелом назви слугує Книга Буття, де Яків, син Ісаака, після боротьби з ангелом Бога отримує ім\'я Ізраїль.'
 
-        # cure: https://www.ukrinform.ua/rubric-world/2899971-vakcina-proti-koronavirusu-oglad-svitovih-rozrobok.html
+        # cure 3: https://www.ukrinform.ua/rubric-world/2899971-vakcina-proti-koronavirusu-oglad-svitovih-rozrobok.html
+        # cure 6: https://www.aljazeera.com/news/2020/12/19/netanyahu-gets-covid-vaccine-starts-israel-rollout
         # https://data.gov.il/dataset/covid-19/resource/d07c0771-01a8-43b2-96cc-c6154e7fa9bd
         # https://data.gov.il/dataset/covid-19/resource/dcf999c1-d394-4b57-a5e0-9d014a62e046#collapse-endpoints
         # https://coronaupdates.health.gov.il/
@@ -698,12 +704,14 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 650 600', 'ViewBoxLineSz': 0.8,
                   'Population': 37851327, 'Area': 312679,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 90000, 'Description': '', 'Cure': 1,
-                  'Regions': {}}
+                  'Peak': 90000, 'Description': '', 'Cure': 5,
+                  'Regions': {},
+                  'vii': ['🚫 Узагальнені дані з воєводств Польщі відсутні у відкритому доступі.<br><br>👉 Міністерство охорони здоров\\\'я Польщі змінило формат подання щоденної статистики з грудня 2020 року.<br><br>👉 Місцеві дані відображають кількість хворих за попередню добу.', '🚫']}
 
         config['Description'] = 'Держава в Центральній Європі. За даними перепису населення, що відбувся у 2015 році, у країні проживало понад 38,5 мільйонів осіб.<br><br>Польща є п&apos;ятою за кількістю населення країною ЄС, дев&apos;ятою в Європі за площею та восьмою за населенням. Близько 61 % населення проживає в містах.'
 
-        # cure: https://www.ukrinform.ua/rubric-world/2899971-vakcina-proti-koronavirusu-oglad-svitovih-rozrobok.html
+        # cure 1: https://www.ukrinform.ua/rubric-world/2899971-vakcina-proti-koronavirusu-oglad-svitovih-rozrobok.html
+        # cure 5: https://notesfrompoland.com/2020/12/02/poland-announces-covid-vaccine-plan-aiming-for-70-80-of-population-to-vaccinate/
 
         config = self.__upd_pol_total(config)
         config = self.__upd_pol_regions(config)
@@ -736,6 +744,9 @@ class iCovid (iCovidBase):
         # news.google.com
         logger.normal(' - Збір даних про регіони з www.gov.pl ..')
         page = self._web_request('https://www.gov.pl/web/koronawirus/wykaz-zarazen-koronawirusem-sars-cov-2')
+
+        with open('page_pol.html', 'w+') as fp:
+            fp.write(page)
 
         # initial regions data
         initial = ['Мазовецьке воєводство', 'Сілезьке воєводство',
@@ -783,12 +794,13 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 1250 800', 'ViewBoxLineSz': 0.8,
                   'Population': 145927292, 'Area': 17098246,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 70000, 'Description': '', 'Cure': 3,
+                  'Peak': 70000, 'Description': '', 'Cure': 6,
                   'Regions': {}}
 
         config['Description'] = 'Федеративна республіка у північній Євразії. Початки державності відносять до періоду Русі — середньовічної держави із центром в Києві, під час розпаду якої, її північно-східні провінції перейшли під владу Золотої Орди, а пізніше стали основою майбутньої Московської держави.<br><br>У березні 2014 року здійснила військову агресію проти України, анексувавши Крим та Севастополь. Веде гібридну війну на Донбасі з метою окупації України.'
 
-        # cure: https://www.aa.com.tr/en/latest-on-coronavirus-outbreak/russia-to-hold-phase-3-of-covid-19-vaccine-trial-abroad/1912694
+        # cure 3: https://www.aa.com.tr/en/latest-on-coronavirus-outbreak/russia-to-hold-phase-3-of-covid-19-vaccine-trial-abroad/1912694
+        # cure 6: https://www.bbc.com/news/world-europe-55221785
 
         config = self.__upd_rus_total(config)
         config = self.__upd_rus_regions(config)
@@ -988,14 +1000,15 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 630 400', 'ViewBoxLineSz': 0.7,
                   'Population': 9663123, 'Area': 93030,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 15000, 'Description': '', 'Cure': 2,
+                  'Peak': 30000, 'Description': '', 'Cure': 4,
                   'Regions': {}}
 
         config['Description'] = 'Держава в центральній Європі. Державна мова — угорська, що є найбільш уживаною уральською мовою у світі.<br><br>Територія сучасної Угорщини століттями була заселена цілою низкою народів, включаючи кельтів, римлян, германських племен, гунів, західних слов&apos;ян та аварів. Країна має економіку з високим рівнем доходу.'
 
-        # cure: https://www.cfr.org/backgrounder/what-world-doing-create-covid-19-vaccine
-        # cure: https://hungarytoday.hu/avigan-drug-against-covid-19-to-be-tested-in-hungary/
-        # cure: https://dailynewshungary.com/hungarian-discovery-might-bring-a-breakthrough-in-curing-covid-19/
+        # cure 2: https://www.cfr.org/backgrounder/what-world-doing-create-covid-19-vaccine
+        # cure 2: https://hungarytoday.hu/avigan-drug-against-covid-19-to-be-tested-in-hungary/
+        # cure 2: https://dailynewshungary.com/hungarian-discovery-might-bring-a-breakthrough-in-curing-covid-19/
+        # cure 4: https://hungarytoday.hu/hungary-coronavirus-vaccine-registration/
 
         config = self.__upd_hug_total(config)
         config = self.__upd_hug_regions(config)
@@ -1067,7 +1080,7 @@ class iCovid (iCovidBase):
         # get regions. skip first two general nodes
         regions = self._html_get_node(page, './/tbody[@class="ppcUXd"]//tr')[2:]
         for region in regions:
-            reg = region.xpath('.//th//div//div')[0].text
+            reg = region.xpath('.//th//div//div')[1].text
             reg_name = name_mapping.get(reg, reg)
 
             sick = region.xpath('.//td')[0].text.strip().replace('\xa0', '')
@@ -1080,12 +1093,13 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '200 350 260 450', 'ViewBoxLineSz': 0.7,
                   'Population': 19251921, 'Area': 238397,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 20000, 'Description': '', 'Cure': 1,
+                  'Peak': 30000, 'Description': '', 'Cure': 4,
                   'Regions': {}}
 
         config['Description'] = 'Держава на перехресті східної, центральної та південно-східної Європи.<br><br>Назва Romania походить від лат. romanus, що означає &quot;громадянин Риму&quot;. Перше відоме вживання цього звернення датується XVI ст. італійськими гуманістами, що подорожували Трансільванією, Богданією та Волощиною.<br><br>Переважна більшість населення самоідентифікують, як православні християнами і є носіями румунської мови.'
 
-        # cure: https://www.romania-insider.com/romania-european-system-coronavirus-vaccine
+        # cure 1: https://www.romania-insider.com/romania-european-system-coronavirus-vaccine
+        # cure 4: https://www.romania-insider.com/president-covid-vaccination-voluntary-romania
 
         config = self.__upd_rom_total(config)
         config = self.__upd_rom_regions(config)

@@ -111,10 +111,10 @@ $(document).on('mousemove', function(e){
 
 $('#footer_content').hover(
     function() {
-        $(this).text("🦠👑 навіть тут був коронавірус. двічі 👑🦠");
+        $(this).text("🔥 мий руки. поважай оточення. носи маску 😷");
     },
     function() {
-        $(this).text("😱 ти збожеволів? мерщій вдягай маску! 😷");
+        $(this).text("🤨 каже вже є вакцина? короні байдуже! 👑");
 });
 
 /* Country changed
@@ -320,7 +320,7 @@ function update_region_stats(name)
     $('#psi_area').attr('class', 'ps_marker dtrr_danger' + danger_lvl);
 
     // Month-sick prognose = sick * spread_coef
-    psm_popl = Math.round((parseInt($('#total').attr('sick')) * (psm_spread + (psm_spread - 1.0) * 30.0)).toFixed(2));
+    psm_popl = Math.round((parseInt($('#total').attr('sick')) * (parseFloat(psm_spread) * 2 - 1.0)).toFixed(2));
     danger_lvl = min_max_level_get(0, parseInt($('#total').attr('sick')) * 2, 5, psm_popl);
     $('#psm_popl').html(psm_popl + ' людей');
     $('#psi_popl').attr('class', 'ps_marker dtrr_danger' + danger_lvl);

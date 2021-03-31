@@ -30,7 +30,7 @@ svg {
     text-align: center;
     background: white;
     padding: 10px 15px;
-    z-index: 5;
+    z-index: 11;
     height: 20px;
     line-height: 20px;
     margin: 0 auto;
@@ -460,7 +460,7 @@ th, td {
     cursor: default;
     opacity: 0;
     display: none;
-    z-index: 12;
+    z-index: 15;
     left: 50%;
     top: 50%;
     height: 30em;
@@ -986,6 +986,108 @@ th, td {
 
 
 /* --------------------------------------------------------------------------
+ * Winter Christmas Snow
+ * -------------------------------------------------------------------------- */
+
+/* Snowflake style */
+.snowflake {
+    color: rgb(0, 183, 255);
+    font-size: 1.25em;
+    font-family: Arial;
+    text-shadow: 0 0 1px rgb(110, 110, 110);
+}
+
+/* Snowflake animations */
+@-webkit-keyframes snowflakes-fall {
+    0% {
+        top: -10%;
+    }
+    100% {
+        top: 100%;
+    }
+}
+
+@-webkit-keyframes snowflakes-shake {
+    0% {
+        -webkit-transform: translateX(0px);
+        transform: translateX(0px);
+    }
+    50%{
+        -webkit-transform: translateX(80px);
+        transform: translateX(80px);
+    }
+    100%{
+        -webkit-transform: translateX(0px);
+        transform: translateX(0px);
+    }
+}
+
+@keyframes snowflakes-fall {
+    0% {
+        top: -10%;
+    }
+    100% {
+        top: 100%;
+    }
+}
+
+@keyframes snowflakes-shake {
+    0% {
+        transform: translateX(0px);
+    }
+    50% {
+        transform: translateX(80px);
+    }
+    100% {
+        transform: translateX(0px)
+    }
+}
+
+.snowflake {
+    position: fixed;
+    top: -10%;
+    z-index: 9999;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    cursor: default;
+    -webkit-animation-name: snowflakes-fall, snowflakes-shake;
+    -webkit-animation-duration: 10s, 3s;
+    -webkit-animation-timing-function: linear, ease-in-out;
+    -webkit-animation-iteration-count: infinite, infinite;
+    -webkit-animation-play-state: running, running;
+    animation-name: snowflakes-fall, snowflakes-shake;
+    animation-duration: 10s, 3s;
+    animation-timing-function: linear, ease-in-out;
+    animation-iteration-count: infinite, infinite;
+    animation-play-state: running, running;
+}
+
+/* Snowflake types description */
+.snowflake:nth-child(0)  { left: 0%;  -webkit-animation-delay:  7s,  3s;   animation-delay:  7s,  3s; }
+.snowflake:nth-child(1)  { left: 5%;  -webkit-animation-delay:  1s, .9s;   animation-delay:  1s, .9s; }
+.snowflake:nth-child(2)  { left: 10%; -webkit-animation-delay:  6s,  4s;   animation-delay:  6s,  4s; }
+.snowflake:nth-child(3)  { left: 15%; -webkit-animation-delay:  5s,  3s;   animation-delay:  5s,  3s; }
+.snowflake:nth-child(4)  { left: 20%; -webkit-animation-delay:  3s, .5s;   animation-delay:  3s, .5s; }
+.snowflake:nth-child(5)  { left: 25%; -webkit-animation-delay:  8s, .3s;   animation-delay:  8s, .3s; }
+.snowflake:nth-child(6)  { left: 30%; -webkit-animation-delay:  5s,  4s;   animation-delay:  5s,  4s; }
+.snowflake:nth-child(7)  { left: 35%; -webkit-animation-delay: 10s,  7s;   animation-delay: 10s,  7s; }
+.snowflake:nth-child(8)  { left: 40%; -webkit-animation-delay:  7s,  2s;   animation-delay:  7s,  2s; }
+.snowflake:nth-child(9)  { left: 45%; -webkit-animation-delay:  3s,  1s;   animation-delay:  3s,  1s; }
+.snowflake:nth-child(10) { left: 50%; -webkit-animation-delay:  2s,  2s;   animation-delay:  2s,  2s; }
+.snowflake:nth-child(11) { left: 55%; -webkit-animation-delay:  7s,  5s;   animation-delay:  7s,  5s; }
+.snowflake:nth-child(12) { left: 60%; -webkit-animation-delay:  9s, .5s;   animation-delay:  9s, .5s; }
+.snowflake:nth-child(13) { left: 65%; -webkit-animation-delay:  6s,  3s;   animation-delay:  6s,  3s; }
+.snowflake:nth-child(14) { left: 70%; -webkit-animation-delay: 11s, 10s;   animation-delay: 11s, 10s; }
+.snowflake:nth-child(15) { left: 75%; -webkit-animation-delay:  4s, .8s;   animation-delay:  4s, .8s; }
+.snowflake:nth-child(16) { left: 80%; -webkit-animation-delay:  8s,  7s;   animation-delay:  8s,  7s; }
+.snowflake:nth-child(17) { left: 85%; -webkit-animation-delay:  3s, .1s;   animation-delay:  3s, .1s; }
+.snowflake:nth-child(18) { left: 90%; -webkit-animation-delay:  5s,  4s;   animation-delay:  5s,  4s; }
+.snowflake:nth-child(19) { left: 95%; -webkit-animation-delay:  2s,  1s;   animation-delay:  2s,  1s; }
+
+
+/* --------------------------------------------------------------------------
  * Fonts
  * -------------------------------------------------------------------------- */
 
@@ -1087,4 +1189,81 @@ th, td {
     font-display: swap;
     src: local('Prata Regular'), local('Prata-Regular'), url(https://fonts.gstatic.com/s/prata/v11/6xKhdSpbNNCT-sWPCm4.woff2) format('woff2');
     unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* ----- Настільні комп'ютери та ноутбуки ----------- */
+@media only screen
+and (min-width: 1224px) {
+	/* ваші CSS-стилі тут */
+}
+
+/* ----- Девайси з великими екранами ----------- */
+@media only screen
+and (min-width: 1824px) {
+	/* ваші CSS-стилі тут */
+}
+
+/* ----- Смартфони (орієнтація екрану Portrait і Landscape) ----------- */
+@media only screen
+and (min-device-width: 320px)
+and (max-device-width: 480px) {
+	/* ваші CSS-стилі тут */
+}
+
+/* ----- Смартфони (орієнтація екрану Landscape) ----------- */
+@media only screen
+and (min-width: 321px) {
+	/* ваші CSS-стилі тут */
+}
+
+/* ----- Смартфони (орієнтація екрану Portrait) ----------- */
+@media only screen
+and (max-width: 320px) {
+	/* ваші CSS-стилі тут */
+}
+
+/* ----- iPhone 5 (орієнтація екрану Portrait і Landscape)----------- */
+@media only screen
+and (min-device-width: 320px)
+and (max-device-width: 568px) {
+	/* ваші CSS-стилі тут */
+}
+
+/* ----- iPhone 5 (орієнтація екрану Landscape)----------- */
+@media only screen
+and (min-device-width: 320px)
+and (max-device-width: 568px)
+and (orientation: landscape) {
+	/* ваші CSS-стилі тут */
+}
+
+/* ----- iPhone 5 (орієнтація екрану Portrait)----------- */
+@media only screen
+and (min-device-width: 320px)
+and (max-device-width: 568px)
+and (orientation: portrait) {
+	/* ваші CSS-стилі тут */
+}
+
+/* ----- iPad-и (орієнтація екрану Portrait і Landscape) ----------- */
+@media only screen
+and (min-device-width: 768px)
+and (max-device-width: 1024px) {
+	/* ваші CSS-стилі тут */
+}
+
+/* ----- iPad-и (орієнтація екрану Landscape) ----------- */
+@media only screen
+and (min-device-width: 768px)
+and (max-device-width: 1024px)
+and (orientation: landscape) {
+	/* ваші CSS-стилі тут */
+}
+
+/* ----- iPad-и (орієнтація екрану Portrait) ----------- */
+@media only screen
+and (min-device-width: 768px)
+and (max-device-width: 1024px)
+and (orientation: portrait) {
+	/* ваші CSS-стилі тут */
 }

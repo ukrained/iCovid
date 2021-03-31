@@ -2,15 +2,18 @@
 
 # metadata
 __title__ = 'iCovid Monitoring Utility'
-__version__ = '2.0.0'
-__release__ = '20 Jul 2020'
+__version__ = '2.8.0'
+__release__ = '31 Mar 2021'
 __author__ = 'Alex Viytiv'
 
 # modules
 import urllib.request
 import urllib.parse
+import smtplib, ssl
+import traceback
 import requests
 import argparse
+import random
 import time
 import json
 import glob
@@ -22,8 +25,12 @@ from lxml import html
 from ftplib import FTP
 from getpass import getpass
 from datetime import datetime, date, timedelta
-from utils import colour, logLevel, logger
+from utils import Font, LogLevel, Logger, Email
 from urllib.parse import quote
+
+
+# global logger object
+logger = Logger(LogLevel.NORMAL)
 
 
 class htmlWorker:
@@ -78,29 +85,27 @@ class htmlWorker:
 class dbWorker:
     ''' DataBase manager '''
 
-    def __init__(self, path, log_level=logLevel.NORMAL):
+    def __init__(self, path):
         ''' DB Constructor '''
         self._path = path
         self.__db = {}
         self.__auto_save = True
-
-        self.logger = logger(log_level)
         self._upload()
 
     def _upload(self):
         ''' Upload DB from the file '''
         if not os.path.isfile(self._path):
-            self.logger.error('Файл БД \'{}\' не існує'.format(self._path))
-            if not self.logger.approve('Створити БД'):
-                self.logger.critical('Заборонена робота без БД')
+            logger.error('Файл БД \'{}\' не існує'.format(self._path))
+            if not logger.approve('Створити БД'):
+                logger.critical('Заборонена робота без БД')
                 self.__auto_save = False
                 exit(1)
             return
 
         if self.__db:
-            self.logger.warning('БД вже ініціалізована')
-            if not self.logger.approve('Перезаписати вміст БД'):
-                self.logger.normal('БД не перезаписана')
+            logger.warning('БД вже ініціалізована')
+            if not logger.approve('Перезаписати вміст БД'):
+                logger.normal('БД не перезаписана')
                 return
 
         with open(self._path, 'r+') as fp:
@@ -114,23 +119,23 @@ class dbWorker:
             except Exception as e:
                 # failure processing
                 self.__auto_save = False
-                self.logger.error('Помилка при підвантаженні БД')
+                logger.error('Помилка при підвантаженні БД')
                 raise e
 
             # Create backup file
             with open(self._path + '.backup', 'w+') as fpb:
                 fpb.write(backup_data)
 
-            self.logger.debug('Створено резервну копію даних "%s"' % (self._path + '.backup'))
+            logger.debug('Створено резервну копію даних "%s"' % (self._path + '.backup'))
 
-        self.logger.success('БД підвантажено')
+        logger.success('БД підвантажено')
 
     def save(self):
         ''' Load DB to the file '''
         with open(self._path, 'w+') as fp:
             json.dump(self.__db, fp, indent=4, ensure_ascii=False)
 
-        self.logger.normal('БД збережено')
+        logger.normal('БД збережено')
 
     def update(self, key, config):
         ''' Update DB entries
@@ -144,7 +149,7 @@ class dbWorker:
         k_regn = key.get('region')
 
         if not k_date:
-            self.logger.error('Ключ "date" обов\'язковий')
+            logger.error('Ключ "date" обов\'язковий')
             return
         elif not self.__db.get(k_date):
             # create if not exist
@@ -161,18 +166,18 @@ class dbWorker:
                     self.__db[k_date][k_cont]['regions'][k_regn] = {}
 
                 self.__db[k_date][k_cont]['regions'][k_regn] = config
-                self.logger.debug('БД регіону {} оновлено'.format(k_regn))
+                logger.debug('БД регіону {} оновлено'.format(k_regn))
                 return
 
             self.__db[k_date][k_cont] = config
-            self.logger.debug('БД країни {} оновлено'.format(k_cont))
+            logger.debug('БД країни {} оновлено'.format(k_cont))
             return
 
         self.__db[k_date] = config
-        self.logger.debug('БД дати {} оновлено'.format(k_date))
+        logger.debug('БД дати {} оновлено'.format(k_date))
         return
 
-    def get(self, key):
+    def get(self, key, default=None):
         ''' Update DB entries
 
         :param key: dict of keys used to identify config point
@@ -184,18 +189,18 @@ class dbWorker:
         k_regn = key.get('region')
 
         if not k_date:
-            self.logger.error('Ключ "date" обов\'язковий')
+            logger.error('Ключ "date" обов\'язковий')
             return None
         elif not self.__db.get(k_date):
-            return None
+            return default
 
         if k_cont:
             if not self.__db[k_date].get(k_cont):
-                return None
+                return default
 
             if key.get('region'):
                 if not self.__db[k_date][k_cont]['regions'].get(k_regn):
-                    return None
+                    return default
 
                 return self.__db[k_date][k_cont]['regions'][k_regn]
 
@@ -223,10 +228,8 @@ class dbWorker:
 
 class iCovidBase:
     ''' Base class with common functionality '''
-    def __init__(self, log_level=logLevel.NORMAL):
-        self.logger = logger(log_level)
-        self.db = dbWorker('icovid.db', self.logger.get_lvl())
-
+    def __init__(self):
+        self.db = dbWorker('icovid.db')
         self._vocab = {}
         self._load_vocabs()
 
@@ -243,7 +246,7 @@ class iCovidBase:
             with open(vocab, 'r+') as fp:
                 self._vocab[slang][dlang] = json.load(fp)
 
-            self.logger.success('Словник "%s-%s" підвантажено' % (slang, dlang))
+            logger.success('Словник "%s-%s" підвантажено' % (slang, dlang))
 
     def _web_request(self, url, headers={}):
         ''' Function perform HTML page request
@@ -253,10 +256,11 @@ class iCovidBase:
         '''
         try:
             html = requests.get(url, headers=headers).text
-        except Exception:
-            self.logger.warning('Недійсний сертифікат сервера "{}"'.format(url))
-            if not self.logger.approve('Не перевіряти сертифікат'):
-                self.logger.critical('Помилка отримання даних')
+        except Exception as e:
+            logger.warning('Недійсний сертифікат сервера "{}"'.format(url))
+            logger.debug(str(e))
+            if not logger.approve('Не перевіряти сертифікат', default=True):
+                logger.critical('Помилка отримання даних')
                 self.__auto_save = False
                 exit(1)
 
@@ -284,17 +288,38 @@ class iCovidBase:
                 with open(vocab, 'w+') as fp:
                     json.dump(self._vocab[slang][dlang], fp, indent=4, ensure_ascii=False)
 
-        self.logger.normal('Словники збережено')
+        logger.normal('Словники збережено')
 
 
 class iCovid (iCovidBase):
-    def __init__(self, debug=False):
+    def __init__(self, server_mode=False):
         ''' Constructor '''
-        super().__init__(logLevel.TRACE if debug else logLevel.NORMAL)
+        super().__init__()
 
         # initialize FTP object
         self.ftp = FTP()
         self.ftp.set_debuglevel(0)
+
+        # server mode flag and credentials data
+        self._server_mode = server_mode
+        self._ftp = {'login': '', 'password': ''}
+        self._smtp = {'email': '', 'password': ''}
+
+        # storage of errors that happened during data update
+        self.upd_errors = []
+
+        # request credentials for FTP and SMTP if server mode used
+        if self._server_mode:
+            logger.normal('Увімкнено автономний режим роботи')
+            logger.normal('Введіть дані для FTP-з\'єднань ..')
+            self._ftp['login'], self._ftp['password'] = self._login()
+
+            logger.normal('Введіть дані для SMTP-з\'єднань ..')
+            self._smtp['email'], self._smtp['password'] = self._login()
+
+            if not (self._ftp['login'] and self._ftp['password'] and \
+                    self._smtp['email'] and self._smtp['password']):
+                logger.warning('Деякі дані не отримано. Вони будуть запитані пізніше')
 
     def update(self):
         ''' Update latest data '''
@@ -306,7 +331,7 @@ class iCovid (iCovidBase):
         curr_date = datetime.now().strftime("%d %b %Y")
 
         # run update data
-        self.logger.normal('Оновлюємо дані ..')
+        logger.normal('Оновлюємо дані ..')
         start = time.time()
 
         for upd_cb in upd_cbs:
@@ -317,26 +342,30 @@ class iCovid (iCovidBase):
                 self.db.update({'date': curr_date, 'country': data['Name']}, data)
                 upd_duration = time.time() - upd_start
 
-                self.logger.success('Дані з %s оновлені [%fс]' % (data['Name'], upd_duration))
+                logger.success('Дані з %s оновлені [%fс]' % (data['Name'], upd_duration))
+
             except Exception as e:
-                self.logger.error('Помилка при оновленні даних: %s' % upd_cb)
-                raise e
+                # handle errors and continue data update
+                error_msg = 'Не вдалось оновити дані країни: %s' % upd_cb
+                logger.error(error_msg)
+                self.upd_errors.append([error_msg, traceback.format_exc()])
                 continue
 
         duration = time.time() - start
-        self.logger.debug('Оновлення даних завершено [%fс]' % duration)
+        logger.debug('Оновлення даних завершено [%fс]' % duration)
 
     def _upd_ukr(self):
         config = {'Name': 'Україна', 'Code': 'ukr',
                   'ViewBoxSz': '0 0 640 410', 'ViewBoxLineSz': 0.7,
                   'Population': 43762985, 'Area': 603628,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 6000, 'Description': '', 'Cure': 2,
+                  'Peak': 65000, 'Description': '', 'Cure': 4,
                   'Regions': {}}
 
         config['Description'] = 'Розташована в Східній та частково в Центральній Європі, у південно-західній частині Східноєвропейської рівнини.<br><br>Держава-правонаступниця УНР, Гетьманщини, Королівства Руського та Київської Русі.<br><br>Найбільша за площею країна з тих, чия територія повністю лежить у Європі.'
 
-        # cure: https://www.president.gov.ua/news/ukrayina-rozpochinaye-klinichni-doslidzhennya-preparatu-sho-60777
+        # cure 2: https://www.president.gov.ua/news/ukrayina-rozpochinaye-klinichni-doslidzhennya-preparatu-sho-60777
+        # cure 4: https://www.president.gov.ua/en/news/ukrayina-vede-peregovori-z-predstavnikami-covax-stosovno-dos-65217
 
         config = self.__upd_ukr_total(config)
         config = self.__upd_ukr_regions(config)
@@ -345,23 +374,24 @@ class iCovid (iCovidBase):
 
     def __upd_ukr_total(self, config):
         # covid19.gov.ua
-        self.logger.normal(' - Збір загальних даних з covid19.gov.ua ..')
+        logger.normal(' - Збір загальних даних з covid19.gov.ua ..')
         page = self._web_request('https://covid19.gov.ua/en/')
 
-        divs = self._html_get_node(page, './/div[@class="one-field light-box info-count"]')
+        divs = self._html_get_node(page, './/div[contains(@class, \'one-field\') and contains(@class, \'light-box\') and contains(@class, \'info-count\')]')
         if len(divs) != 4:
-            self.logger.error('Неочікуване число елементів - %d' % len(divs))
+            logger.error('Неочікуване число елементів - %d' % len(divs))
             exit(1)
 
-        for i, case in enumerate(['Tested', 'Sick', 'Dead', 'Recovered']):
-            config[case] = int(divs[i].xpath('.//div')[0].text.strip().replace(' ', ''))
+        for i, case in enumerate(['Sick', 'Recovered', 'Dead', 'Tested']):
+            raw_text = divs[i].xpath('.//div')[0].text.strip()
+            config[case] = int(re.sub(r"\D", "", raw_text))
 
         return config
 
     def __upd_ukr_regions(self, config):
         # moz.gov.ua
         # detailed - https://index.minfin.com.ua/ua/reference/coronavirus/ukraine/
-        self.logger.normal(' - Збір даних про регіони з index.minfin.com.ua ..')
+        logger.normal(' - Збір даних про регіони з index.minfin.com.ua ..')
         page = self._web_request('https://index.minfin.com.ua/ua/reference/coronavirus/ukraine/')
 
         # initial regions data
@@ -423,11 +453,13 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 1300 1300', 'ViewBoxLineSz': 2,
                   'Population': 2529608, 'Area': 21833,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 1000, 'Description': '', 'Cure': 0,
-                  'Regions': {},
-                  'vii': '☣️ Нажаль, немає постійного джерела даних для Львівщини.<br><br>👉 Наразі дані оновлюються вручну щоденно.'}
+                  'Peak': 5000, 'Description': '', 'Cure': 4,
+                  'Regions': {}}
 
         config['Description'] = 'Одна з трьох областей історико-культурного регіону Галичина, частини Карпатського регіону.<br><br>Одна з найрозвиненіших областей в економічному, туристичному, культурному та науковому напрямках.'
+
+        # cure 2: https://www.president.gov.ua/news/ukrayina-rozpochinaye-klinichni-doslidzhennya-preparatu-sho-60777
+        # cure 4: https://www.president.gov.ua/en/news/ukrayina-vede-peregovori-z-predstavnikami-covax-stosovno-dos-65217
 
         config = self.__upd_ulv_total(config)
         config = self.__upd_ulv_regions(config)
@@ -436,7 +468,7 @@ class iCovid (iCovidBase):
 
     def __upd_ulv_total(self, config):
         # covid19.gov.ua
-        self.logger.normal(' - Збір загальних даних з index.minfin.com.ua ..')
+        logger.normal(' - Збір загальних даних з index.minfin.com.ua ..')
         page = self._web_request('https://index.minfin.com.ua/ua/reference/coronavirus/ukraine/')
 
         rows = self._html_get_node(page, './/div[@class="compact-table expand-table"]//table//tr')
@@ -449,126 +481,121 @@ class iCovid (iCovidBase):
                 config['Dead'] = int(items[3].text)
                 config['Recovered'] = int(items[5].text)
 
-        tested_links = ['https://portal.lviv.ua/news/2020/06/01/covid-19-na-lvivshchyni-karta-poshyrennia-po-rajonakh',
-                        'https://portal.lviv.ua/news/2020/06/02/v-iakykh-rajonakh-lvivshchyny-najbilshe-khvorykh-na-covid-19-karta-poshyrennia',
-                        'https://portal.lviv.ua/news/2020/06/03/novyj-antyrekord-lvivshchyny-za-dobu-vyiavyly-96-khvorykh-na-koronavirus',
-                        'https://portal.lviv.ua/news/2020/06/04/covid-19-na-lvivshchyni-85-khvorykh-za-dobu',
-                        'https://portal.lviv.ua/news/2020/06/05/koronavirusom-zarazylysia-majzhe-2000-meshkantsiv-lvivshchyny',
-                        'https://portal.lviv.ua/news/2020/06/07/koronavirus-na-lvivshchyni-68-novykh-khvorykh',
-                        'https://portal.lviv.ua/news/2020/06/08/na-lvivshchyni-vzhe-73-letalni-vypadky-cherez-covid-19',
-                        'https://portal.lviv.ua/news/2020/06/09/covid-19-na-lvivshchyni-za-dobu-vyiavyly-49-khvorykh',
-                        'https://portal.lviv.ua/news/2020/06/10/2289-vypadkiv-covid-19-na-lvivshchyni-de-najbilshe-khvorykh',
-                        'https://portal.lviv.ua/news/2020/06/11/chomu-u-rajonakh-lvivshchyny-liudy-menshe-khvoriiut-na-koronavirus-poiasnennia-epidemioloha',
-                        'https://portal.lviv.ua/news/2020/06/12/novi-vypadky-covid-19-na-lvivshchyni-zvidky-khvori',
-                        'https://portal.lviv.ua/news/2020/06/13/koronavirusnyj-antyrekord-na-lvivshchyni-za-dobu-132-novykh-khvorykh',
-                        'https://portal.lviv.ua/news/2020/06/14/za-dobu-vid-koronavirusu-na-lvivshchyni-pomer-cholovik-ta-troie-zhinok',
-                        'https://portal.lviv.ua/news/2020/06/15/de-na-lvivshchyni-najbilshe-khvorykh-na-koronavirus',
-                        'https://portal.lviv.ua/news/2020/06/16/lviv-nadali-lidyruie-v-oblasti-za-kilkistiu-khvorykh-na-covid-19',
-                        'https://portal.lviv.ua/news/2020/06/17/3227-vypadkiv-covid-19-na-lvivshchyni-de-najbilshe-khvorykh',
-                        'https://portal.lviv.ua/news/2020/06/18/koronavirus-na-lvivshchyni-karta-poshyrennia-po-rajonakh-oblasti',
-                        'https://portal.lviv.ua/news/2020/06/19/na-lvivshchyni-vyiavleno-3540-vypadkiv-infikuvannia-covid-19',
-                        'https://portal.lviv.ua/news/2020/06/20/koronavirus-pidkhopyly-3679-meshkantsiv-lvivshchyny',
-                        'https://portal.lviv.ua/news/2020/06/21/covid-19-na-lvivshchyni-za-dobu-sotnia-novykh-vypadkiv-zvidky-khvori',
-                        'https://portal.lviv.ua/news/2020/06/22/u-lvovi-vzhe-ponad-2300-liudej-zakhvorily-na-koronavirus',
-                        'https://portal.lviv.ua/news/2020/06/23/4220-vypadkiv-covid-19-na-lvivshchyni-karta-poshyrennia-po-rajonakh',
-                        'https://portal.lviv.ua/news/2020/06/24/koronavirus-na-lvivshchyni-pidtverdyly-u-shche-203-liudej',
-                        'https://portal.lviv.ua/news/2020/06/25/koronavirus-na-lvivshchyni-karta-poshyrennia-rajonamy',
-                        'https://portal.lviv.ua/news/2020/06/26/na-lvivshchyni-vyiavyly-ponad-200-novykh-vypadkiv-koronavirusu',
-                        'https://portal.lviv.ua/news/2020/06/27/u-lvovi-vyiavyly-vzhe-ponad-2-5-tysiachi-khvorykh-na-covid-19',
-                        'https://portal.lviv.ua/news/2020/06/28/covid-19-na-lvivshchyni-karta-poshyrennia-po-rajonakh',
-                        'https://portal.lviv.ua/news/2020/06/29/koronavirus-na-lvivshchyni-115-novykh-khvorykh-oduzhaly-bilshe-700-liudej',
-                        'https://portal.lviv.ua/news/2020/06/30/covid-19-na-lvivshchyni-plius-143-novykh-khvorykh',
-                        'https://portal.lviv.ua/news/2020/07/01/koronavirus-na-lvivshchyni-za-dobu-143-novykh-khvorykh',
-                        'https://portal.lviv.ua/news/2020/07/02/covid-19-na-lvivshchyni-za-dobu-vyiavyly-152-khvorykh',
-                        'https://portal.lviv.ua/news/2020/07/03/u-lvovi-3100-khvorykh-na-koronavirus',
-                        'https://portal.lviv.ua/news/2020/07/04/covid-19-na-lvivshchyni-karta-poshyrennia-rajonamy',
-                        'https://portal.lviv.ua/news/2020/07/05/koronavirus-za-dobu-na-lvivshchyni-vyiavyly-138-novykh-khvorykh',
-                        'https://portal.lviv.ua/news/2020/07/06/ponad-6300-vypadkiv-covid-19-na-lvivshchyni-karta-poshyrennia-rajonamy',
-                        'https://portal.lviv.ua/news/2020/07/07/covid-19-na-lvivshchyni-pidkhopyly-shche-144-liudyny',
-                        'https://portal.lviv.ua/news/2020/07/08/covid-19-na-lvivshchyni-pidtverdyly-u-shche-117-liudej',
-                        'http://tvoemisto.tv/covid-19-lviv/',  # 08 Jul 2020
-                        'https://portal.lviv.ua/news/2020/07/09/za-dobu-na-lvivshchyni-119-novykh-infikuvan-covid-19',
-                        'https://portal.lviv.ua/news/2020/07/10/koronavirus-na-lvivshchyny-karta-poshyrennia-po-rajonakh',
-                        'https://portal.lviv.ua/news/2020/07/11/koronavirus-na-lvivshchyni-vyiavleno-119-novykh-vypadkiv',
-                        'https://portal.lviv.ua/news/2020/07/12/na-lvivshchyni-covid-19-pidkhopyly-vzhe-ponad-sim-tysiach-osib',
-                        'https://portal.lviv.ua/news/2020/07/13/lviv-dali-lidyruie-v-oblasti-za-kilkistiu-khvorykh-na-covid-19',
-                        'https://portal.lviv.ua/news/2020/07/14/za-dobu-koronavirus-diahnostuvaly-147-meshkantsiam-lvivshchyny',
-                        'https://portal.lviv.ua/news/2020/07/15/de-na-lvivshchyni-najbilshe-khvoriiut-na-covid-19-karta-poshyrennia',
-                        'https://portal.lviv.ua/news/2020/07/16/ponad-7600-khvorykh-koronavirusom-na-lvivshchyni-karta-poshyrennia-rajonamy',
-                        'https://portal.lviv.ua/news/2020/07/17/na-lvivshchyni-vid-uskladnen-koronavirusu-pomerlo-shche-chetvero-liudej',
-                        'https://portal.lviv.ua/news/2020/07/18/na-lvivshchyni-koronavirus-pidkhopylo-shche-137-osib-pomerlo-chetvero-liudej',
-                        'https://portal.lviv.ua/news/2020/07/19/za-dobu-na-lvivshchyni-vid-koronavirusu-oduzhalo-98-liudej',
-                        'https://portal.lviv.ua/news/2020/07/20/na-lvivshchyni-za-dobu-115-novykh-khvorykh-na-covid-19',
-                        '']
+        # headers required to get access to the mae.ro web-page
+        hdrs = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:82.0) Gecko/20100101 Firefox/82.0'}
 
-        ''' Commented due to manual updates
-        page = self._web_request(tested_links[0])
-        tested_p = self._html_get_node(page, './/div[@class="article-content"]//p')[3]
-        '''
+        # get intial page to find out final link with tested persond data
+        page = self._web_request('http://ses.lviv.ua/')
+        links = self._html_get_node(page, './/div[@class="moduletable"]//ul//li//a')
 
-        # manual update
-        config['Tested'] = 50236  # int(''.join(tested_p.text.split()[7:9]))
+        # go through all available paragraphs and look for the link
+        target_link = ''
+        for link in links:
+            if 'Covid-19 у Львівській області станом на' in link.text:
+                target_link = 'http://ses.lviv.ua' + link.attrib['href']
+                break
+
+        if target_link:
+            logger.debug('Цільове посилання: {} ..'.format(target_link))
+            # get the page with tested persons quanity
+            page = self._web_request(target_link, headers=hdrs)
+            paragraphs = self._html_get_node(page, './/div[@class="item-page news-page"]//div//p')
+
+            for p in paragraphs:
+                if p.text_content() and 'Всього проведено' in p.text_content().strip():
+                    config['Tested'] = int(p.text_content().split()[2])
+                    break
 
         return config
 
     def __upd_ulv_regions(self, config):
         # moz.gov.ua
         # detailed - https://index.minfin.com.ua/ua/reference/coronavirus/ukraine/
-        self.logger.normal(' - Збір даних про регіони з portal.lviv.ua ..')
-        #page = self._web_request(tested_links[0])
+        logger.normal(' - Збір даних про регіони з ses.lviv.ua ..')
+        # page = self._web_request(tested_links[0])
 
         # initial regions data
-        initial = ["Бродівський район", "Буський район",
-                   "Городоцький район", "Дрогобицький район",
-                   "Жидачівський район", "Жовківський район",
-                   "Золочівський район", "Кам'янка-Бузький район",
-                   "Миколаївський район", "Мостиський район",
-                   "Перемишлянський район", "Пустомитівський район",
-                   "Радехівський район", "Самбірський район",
-                   "Сколівський район", "Сокальський район",
-                   "Старосамбірський район", "Стрийський район",
+        initial = ["Бродівський район", "Буський район", "Городоцький район",
+                   "Дрогобицький район",  # Борислав, Стебник, Дрогобич, Трускавець
+                   "Жидачівський район", "Жовківський район", "Золочівський район",
+                   "Кам'янка-Бузький район", "Миколаївський район",  # Новий Розділ
+                   "Мостиський район", "Перемишлянський район", "Пустомитівський район",
+                   "Радехівський район", "Самбірський район",  # Самбір
+                   "Сколівський район", "Сокальський район",  # Червоноград
+                   "Старосамбірський район", "Стрийський район",  # Моршин, Стрий
                    "Турківський район", "Яворівський район",
                    "м. Львів"]
         config['Regions'] = {k: 0 for k in initial}
 
-        ''' Commented due to manual updates
-        litems = self._html_get_node(page, './/div[@class="article-content"]//ol//li')
-        for litem in litems:
-            reg, sick = litem.text.replace(';', '').replace('’', '\'').split('–')[:2]
-            reg = reg.strip()
-            sick = int(sick.replace(',', ' ').replace('.', ' ').split()[0])
+        sub_regions_mapping = {
+            'Львова': 'м. Львів',
+            'Борислав': 'Дрогобицький район',
+            'Бродівськ': 'Бродівський район',
+            'Буськ': 'Буський район',
+            'Городоцьк': 'Городоцький район',
+            'Дрогобицьк': 'Дрогобицький район',
+            'Дрогобич': 'Дрогобицький район',
+            'Стебник': 'Дрогобицький район',
+            'Жидачівськ': 'Жидачівський район',
+            'Жовківськ': 'Жовківський район',
+            'Золочівськ': 'Золочівський район',
+            'Кам’янка-Бузьк': 'Кам\'янка-Бузький район',
+            'Миколаївськ': 'Миколаївський район',
+            'Моршин': 'Стрийський район',
+            'Мостиськ': 'Мостиський район',
+            'Новий Розділ': 'Миколаївський район',
+            'Перемишлянськ': 'Перемишлянський район',
+            'Пустомитівськ': 'Пустомитівський район',
+            'Радехівськ': 'Радехівський район',
+            'Самбір': 'Самбірський район',
+            'Самбірськ': 'Самбірський район',
+            'Сколівськ': 'Сколівський район',
+            'Сокальськ': 'Сокальський район',
+            'Старосамбірськ': 'Старосамбірський район',
+            'Стрий': 'Стрийський район',
+            'Стрийськ': 'Стрийський район',
+            'Трускавець': 'Дрогобицький район',
+            'Турківськ': 'Турківський район',
+            'Червоноград': 'Сокальський район',
+            'Яворівськ': 'Яворівський район'
+        }
 
-            if reg == 'м. Червоноград':
-                config['Regions']['Сокальський район'] += sick
+        # headers required to get access to the mae.ro web-page
+        hdrs = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:82.0) Gecko/20100101 Firefox/82.0'}
 
-            if reg in initial:
-                config['Regions'][reg] = sick
-        '''
+        # get intial page to find out final link with tested persond data
+        page = self._web_request('http://ses.lviv.ua/')
+        links = self._html_get_node(page, './/div[@class="moduletable"]//ul//li//a')
 
-        # manual update
-        config['Regions'] = {
-                "Бродівський район": 62,
-                "Буський район": 62,
-                "Городоцький район": 241,
-                "Дрогобицький район": 188,  # Борислав, Стебник, Дрогобич, Трускавець
-                "Жидачівський район": 84,
-                "Жовківський район": 445,
-                "Золочівський район": 78,
-                "Кам'янка-Бузький район": 302,
-                "Миколаївський район": 327,  # Новий Розділ
-                "Мостиський район": 74,
-                "Перемишлянський район": 120,
-                "Пустомитівський район": 743,
-                "Радехівський район": 32,
-                "Самбірський район": 106,  # Самбір
-                "Сколівський район": 29,
-                "Сокальський район": 282,  # Червоноград
-                "Старосамбірський район": 10,
-                "Стрийський район": 129,  # Моршин, Стрий
-                "Турківський район": 75,
-                "Яворівський район": 629,
-                "м. Львів": 4108
-            }
+        # go through all available paragraphs and look for the link
+        target_link = ''
+        for link in links:
+            if 'Covid-19 у Львівській області станом на' in link.text:
+                target_link = 'http://ses.lviv.ua' + link.attrib['href']
+                break
+
+        if target_link:
+            logger.debug('Цільове посилання: {} ..'.format(target_link))
+            # get the page with regions sick quanity
+            page = self._web_request(target_link, headers=hdrs)
+            # extract text content of each data node
+            paragraphs = [p.text_content() for p in self._html_get_node(page, './/div[@class="item-page news-page"]//div//p')]
+
+            for ptext in paragraphs:
+                if not ptext:
+                    # no text in the paragraph
+                    continue
+
+                for k, v in sub_regions_mapping.items():
+                    # look for the region in the aragraph text
+                    if k in ptext:
+                        try:
+                            local_sick = int(ptext.split('/')[0].replace('–', ' ').replace('-', ' ').split()[-1])
+                            config['Regions'][v] += local_sick
+                        except ValueError:
+                            # there may be incorrect web page formatting that will cause value error
+                            pass
+                        break
 
         return config
 
@@ -577,13 +604,14 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 250 800', 'ViewBoxLineSz': 1.0,
                   'Population': 8638917, 'Area': 20770,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 10000, 'Description': '', 'Cure': 3,
+                  'Peak': 80000, 'Description': '', 'Cure': 6,
                   'Regions': {},
-                  'vii': '☣️ Дані з регіонів Ізраїлю відсутні у відкритому доступі.<br><br>👉 Публікація останніх відкритих даних відбулась 30 квітня 2020 року.<br><br>👉 Регіональний розподіл виконаний рівномірно на основі розподілу кількості населення у регіонах.'}
+                  'vii': ['💬 Дані з регіонів Ізраїлю відсутні у відкритому доступі.<br><br>👉 Публікація останніх відкритих даних відбулась 30 квітня 2020 року.<br><br>👉 Регіональний розподіл виконаний рівномірно на основі розподілу кількості населення у регіонах.', '💬']}
 
         config['Description'] = 'Розташований на східному узбережжі Середземного моря. Незалежність проголошено 14 травня 1948 року (5 іяра 5708 року).<br><br>Ізраїль є єврейською державою. Упродовж трьох тисячоліть слово «Ізраїль» позначає Землю Ізраїльську (івр. אֶרֶץ יִשְׂרָאֵל‎, Е́рец-Їсрае́ль) і весь єврейський народ.<br><br>Джерелом назви слугує Книга Буття, де Яків, син Ісаака, після боротьби з ангелом Бога отримує ім\'я Ізраїль.'
 
-        # cure: https://www.ukrinform.ua/rubric-world/2899971-vakcina-proti-koronavirusu-oglad-svitovih-rozrobok.html
+        # cure 3: https://www.ukrinform.ua/rubric-world/2899971-vakcina-proti-koronavirusu-oglad-svitovih-rozrobok.html
+        # cure 6: https://www.aljazeera.com/news/2020/12/19/netanyahu-gets-covid-vaccine-starts-israel-rollout
         # https://data.gov.il/dataset/covid-19/resource/d07c0771-01a8-43b2-96cc-c6154e7fa9bd
         # https://data.gov.il/dataset/covid-19/resource/dcf999c1-d394-4b57-a5e0-9d014a62e046#collapse-endpoints
         # https://coronaupdates.health.gov.il/
@@ -596,7 +624,7 @@ class iCovid (iCovidBase):
     def __upd_isr_total(self, config):
         # govextra.gov.il
         # Palestine: https://corona.ps/
-        self.logger.normal(' - Збір загальних даних з worldometers.info ..')
+        logger.normal(' - Збір загальних даних з worldometers.info ..')
         page = self._web_request('https://www.worldometers.info/coronavirus/')
 
         countries = self._html_get_node(page, './/table[@id="main_table_countries_today"]/tbody/tr')
@@ -616,7 +644,7 @@ class iCovid (iCovidBase):
 
     def __upd_isr_regions(self, config):
         # news.google.com
-        self.logger.normal(' - Збір даних про регіони з news.google.com ..')
+        logger.normal(' - Збір даних про регіони з news.google.com ..')
         page = self._web_request('https://news.google.com/covid19/map?hl=uk&gl=UA&ceid=UA%3Auk&mid=%2Fm%2F03spz')
 
         # initial regions data
@@ -682,12 +710,14 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 650 600', 'ViewBoxLineSz': 0.8,
                   'Population': 37851327, 'Area': 312679,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 6000, 'Description': '', 'Cure': 1,
-                  'Regions': {}}
+                  'Peak': 90000, 'Description': '', 'Cure': 5,
+                  'Regions': {},
+                  'vii': ['💬 Узагальнені дані з воєводств Польщі відсутні у відкритому доступі.<br><br>👉 Міністерство охорони здоров\\\'я Польщі змінило формат подання щоденної статистики з грудня 2020 року.<br><br>👉 Місцеві дані відображають кількість хворих за попередню добу.', '💬']}
 
         config['Description'] = 'Держава в Центральній Європі. За даними перепису населення, що відбувся у 2015 році, у країні проживало понад 38,5 мільйонів осіб.<br><br>Польща є п&apos;ятою за кількістю населення країною ЄС, дев&apos;ятою в Європі за площею та восьмою за населенням. Близько 61 % населення проживає в містах.'
 
-        # cure: https://www.ukrinform.ua/rubric-world/2899971-vakcina-proti-koronavirusu-oglad-svitovih-rozrobok.html
+        # cure 1: https://www.ukrinform.ua/rubric-world/2899971-vakcina-proti-koronavirusu-oglad-svitovih-rozrobok.html
+        # cure 5: https://notesfrompoland.com/2020/12/02/poland-announces-covid-vaccine-plan-aiming-for-70-80-of-population-to-vaccinate/
 
         config = self.__upd_pol_total(config)
         config = self.__upd_pol_regions(config)
@@ -696,7 +726,7 @@ class iCovid (iCovidBase):
 
     def __upd_pol_total(self, config):
         # news.google.com
-        self.logger.normal(' - Збір загальних даних з worldometers.info ..')
+        logger.normal(' - Збір загальних даних з worldometers.info ..')
         page = self._web_request('https://www.worldometers.info/coronavirus/')
 
         data = None
@@ -718,8 +748,11 @@ class iCovid (iCovidBase):
 
     def __upd_pol_regions(self, config):
         # news.google.com
-        self.logger.normal(' - Збір даних про регіони з www.gov.pl ..')
+        logger.normal(' - Збір даних про регіони з www.gov.pl ..')
         page = self._web_request('https://www.gov.pl/web/koronawirus/wykaz-zarazen-koronawirusem-sars-cov-2')
+
+        with open('page_pol.html', 'w+') as fp:
+            fp.write(page)
 
         # initial regions data
         initial = ['Мазовецьке воєводство', 'Сілезьке воєводство',
@@ -767,12 +800,13 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 1250 800', 'ViewBoxLineSz': 0.8,
                   'Population': 145927292, 'Area': 17098246,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 10000, 'Description': '', 'Cure': 3,
+                  'Peak': 70000, 'Description': '', 'Cure': 6,
                   'Regions': {}}
 
         config['Description'] = 'Федеративна республіка у північній Євразії. Початки державності відносять до періоду Русі — середньовічної держави із центром в Києві, під час розпаду якої, її північно-східні провінції перейшли під владу Золотої Орди, а пізніше стали основою майбутньої Московської держави.<br><br>У березні 2014 року здійснила військову агресію проти України, анексувавши Крим та Севастополь. Веде гібридну війну на Донбасі з метою окупації України.'
 
-        # cure: https://www.aa.com.tr/en/latest-on-coronavirus-outbreak/russia-to-hold-phase-3-of-covid-19-vaccine-trial-abroad/1912694
+        # cure 3: https://www.aa.com.tr/en/latest-on-coronavirus-outbreak/russia-to-hold-phase-3-of-covid-19-vaccine-trial-abroad/1912694
+        # cure 6: https://www.bbc.com/news/world-europe-55221785
 
         config = self.__upd_rus_total(config)
         config = self.__upd_rus_regions(config)
@@ -782,7 +816,7 @@ class iCovid (iCovidBase):
     def __upd_rus_total(self, config):
         # news.google.com
         # https://covid.ourworldindata.org/data/owid-covid-data.json
-        self.logger.normal(' - Збір загальних даних з covid19.rosminzdrav.ru ..')
+        logger.normal(' - Збір загальних даних з covid19.rosminzdrav.ru ..')
         page = self._web_request('https://covid19.rosminzdrav.ru/wp-json/api/mapdata/')
         data = json.loads(page)['Items']
 
@@ -807,7 +841,7 @@ class iCovid (iCovidBase):
 
     def __upd_rus_regions(self, config):
         # news.google.com
-        self.logger.normal(' - Збір даних про регіони з covid19.rosminzdrav.ru ..')
+        logger.normal(' - Збір даних про регіони з covid19.rosminzdrav.ru ..')
         page = self._web_request('https://covid19.rosminzdrav.ru/wp-json/api/mapdata/')
         data = json.loads(page)['Items']
 
@@ -972,14 +1006,15 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '0 0 630 400', 'ViewBoxLineSz': 0.7,
                   'Population': 9663123, 'Area': 93030,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 2000, 'Description': '', 'Cure': 2,
+                  'Peak': 30000, 'Description': '', 'Cure': 4,
                   'Regions': {}}
 
         config['Description'] = 'Держава в центральній Європі. Державна мова — угорська, що є найбільш уживаною уральською мовою у світі.<br><br>Територія сучасної Угорщини століттями була заселена цілою низкою народів, включаючи кельтів, римлян, германських племен, гунів, західних слов&apos;ян та аварів. Країна має економіку з високим рівнем доходу.'
 
-        # cure: https://www.cfr.org/backgrounder/what-world-doing-create-covid-19-vaccine
-        # cure: https://hungarytoday.hu/avigan-drug-against-covid-19-to-be-tested-in-hungary/
-        # cure: https://dailynewshungary.com/hungarian-discovery-might-bring-a-breakthrough-in-curing-covid-19/
+        # cure 2: https://www.cfr.org/backgrounder/what-world-doing-create-covid-19-vaccine
+        # cure 2: https://hungarytoday.hu/avigan-drug-against-covid-19-to-be-tested-in-hungary/
+        # cure 2: https://dailynewshungary.com/hungarian-discovery-might-bring-a-breakthrough-in-curing-covid-19/
+        # cure 4: https://hungarytoday.hu/hungary-coronavirus-vaccine-registration/
 
         config = self.__upd_hug_total(config)
         config = self.__upd_hug_regions(config)
@@ -988,7 +1023,7 @@ class iCovid (iCovidBase):
 
     def __upd_hug_total(self, config):
         # news.google.com
-        self.logger.normal(' - Збір загальних даних з koronavirus.gov.hu ..')
+        logger.normal(' - Збір загальних даних з koronavirus.gov.hu ..')
         page = self._web_request('https://koronavirus.gov.hu/')
 
         recv_pest = self._html_get_node(page, './/div[@id="api-gyogyult-pest"]')[0]
@@ -1010,7 +1045,7 @@ class iCovid (iCovidBase):
 
     def __upd_hug_regions(self, config):
         # news.google.com
-        self.logger.normal(' - Збір даних про регіони з news.google.com ..')
+        logger.normal(' - Збір даних про регіони з news.google.com ..')
         page = self._web_request('https://news.google.com/covid19/map?hl=uk&gl=UA&ceid=UA%3Auk&mid=%2Fm%2F03gj2')
 
         # initial regions data
@@ -1051,7 +1086,7 @@ class iCovid (iCovidBase):
         # get regions. skip first two general nodes
         regions = self._html_get_node(page, './/tbody[@class="ppcUXd"]//tr')[2:]
         for region in regions:
-            reg = region.xpath('.//th//div//div')[0].text
+            reg = region.xpath('.//th//div//div')[1].text
             reg_name = name_mapping.get(reg, reg)
 
             sick = region.xpath('.//td')[0].text.strip().replace('\xa0', '')
@@ -1064,12 +1099,13 @@ class iCovid (iCovidBase):
                   'ViewBoxSz': '200 350 260 450', 'ViewBoxLineSz': 0.7,
                   'Population': 19251921, 'Area': 238397,
                   'Tested': 0, 'Sick': 0, 'Recovered': 0, 'Dead': 0,
-                  'Peak': 4000, 'Description': '', 'Cure': 1,
+                  'Peak': 30000, 'Description': '', 'Cure': 4,
                   'Regions': {}}
 
         config['Description'] = 'Держава на перехресті східної, центральної та південно-східної Європи.<br><br>Назва Romania походить від лат. romanus, що означає &quot;громадянин Риму&quot;. Перше відоме вживання цього звернення датується XVI ст. італійськими гуманістами, що подорожували Трансільванією, Богданією та Волощиною.<br><br>Переважна більшість населення самоідентифікують, як православні християнами і є носіями румунської мови.'
 
-        # cure: https://www.romania-insider.com/romania-european-system-coronavirus-vaccine
+        # cure 1: https://www.romania-insider.com/romania-european-system-coronavirus-vaccine
+        # cure 4: https://www.romania-insider.com/president-covid-vaccination-voluntary-romania
 
         config = self.__upd_rom_total(config)
         config = self.__upd_rom_regions(config)
@@ -1078,7 +1114,7 @@ class iCovid (iCovidBase):
 
     def __upd_rom_total(self, config):
         # news.google.com
-        self.logger.normal(' - Збір загальних даних з mae.ro ..')
+        logger.normal(' - Збір загальних даних з mae.ro ..')
 
         # headers required to get access to the mae.ro web-page
         hdrs = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'}
@@ -1095,17 +1131,19 @@ class iCovid (iCovidBase):
                 break
 
         if target_link:
-            self.logger.debug('Цільове посилання: {} ..'.format(target_link))
+            logger.debug('Цільове посилання: {} ..'.format(target_link))
             # get the page with tested persons quanity
             page = self._web_request(target_link, headers=hdrs)
             paragraphs = self._html_get_node(page, './/div[@class="my-8 break-words rich-text"]//p')
             for p in paragraphs:
-                if p.text and p.text.strip().endswith('teste.'):
+                if p.text and 'au fost prelucrate' in p.text.strip():
                     config['Tested'] = int(p.text.split()[10].replace('.', ''))
                     break
 
         # get other data
         page = self._web_request('https://datelazi.ro/latestData.json')
+        #page = self._web_request('https://di5ds1eotmbx1.cloudfront.net/latestData.json')
+
         data = json.loads(page)['currentDayStats']
 
         config['Sick'] = data['numberInfected']
@@ -1116,7 +1154,7 @@ class iCovid (iCovidBase):
 
     def __upd_rom_regions(self, config):
         # news.google.com
-        self.logger.normal(' - Збір даних про регіони з datelazi.ro ..')
+        logger.normal(' - Збір даних про регіони з datelazi.ro ..')
         page = self._web_request('https://datelazi.ro/latestData.json')
         data = json.loads(page)['currentDayStats']['countyInfectionsNumbers']
 
@@ -1186,7 +1224,7 @@ class iCovid (iCovidBase):
             if region == '-':
                 # unproceeded persons will be equally divided between regions
                 unknown = data[region]
-                self.logger.debug('Невідомий регіон у %d осіб' % unknown)
+                logger.debug('Невідомий регіон у %d осіб' % unknown)
 
                 # common shared number
                 common = int(data[region] / len(config['Regions']))
@@ -1209,7 +1247,7 @@ class iCovid (iCovidBase):
         ''' Show COVID information '''
         # get input data
         data_today = self.db.get({'date': date.today().strftime("%d %b %Y")})
-        data_yestd = self.db.get({'date': (date.today() - timedelta(days=1)).strftime("%d %b %Y")})
+        data_yestd = self.db.get({'date': (date.today() - timedelta(days=1)).strftime("%d %b %Y")}, data_today)
 
         # datetime object containing current date and time
         curr_date = '\n * Дані станом на {:%d %b %Y [%H:%M:%S]}\n'.format(datetime.now())
@@ -1231,7 +1269,7 @@ class iCovid (iCovidBase):
                                                reverse=True)}
 
             # country information
-            text += '\n   [ %s ] ' % colour.set(colour.fg.cyan, country)
+            text += '\n   [ %s ] ' % Font.set(Font.fg.cyan, country)
             text += 'Населення {:,} людей на {:,} км2 ({:.2f} л/км2)\n' \
                     .format(cfg['Population'], cfg['Area'],
                             cfg['Population'] / cfg['Area'])
@@ -1242,39 +1280,39 @@ class iCovid (iCovidBase):
 
             d_test = cfg['Tested'] - ycfg.get('Tested', cfg['Tested'])
             d_recv = cfg['Recovered'] - ycfg.get('Recovered', cfg['Recovered'])
-            text += block.format(cfg['Tested'], colour.set(colour.fg.grey, 'Перевірені'), d_test,
-                                 cfg['Recovered'], colour.set(colour.fg.green, 'Одужали'), d_recv)
+            text += block.format(cfg['Tested'], Font.set(Font.fg.grey, 'Перевірені'), d_test,
+                                 cfg['Recovered'], Font.set(Font.fg.green, 'Одужали'), d_recv)
 
             d_sick = cfg['Sick'] - ycfg.get('Sick', cfg['Sick'])
             d_dead = cfg['Dead'] - ycfg.get('Dead', cfg['Dead'])
-            text += block.format(cfg['Sick'], colour.set(colour.fg.yellow, 'Хворі'), d_sick,
-                                 cfg['Dead'], colour.set(colour.fg.red, 'Померли'), d_dead)
+            text += block.format(cfg['Sick'], Font.set(Font.fg.yellow, 'Хворі'), d_sick,
+                                 cfg['Dead'], Font.set(Font.fg.red, 'Померли'), d_dead)
 
             # separator
             text += ' +{:-<76}+\n'.format('')
 
             # regions information
             if regions:
-                # 5 zones coloured by unique colour
-                zones = {0: colour.fg.white, 1: colour.fg.yellow,
-                         2: colour.fg.orange, 3: colour.fg.lightred,
-                         4: colour.fg.red}
+                # 5 zones Fonted by unique Font
+                zones = {0: Font.fg.white, 1: Font.fg.yellow,
+                         2: Font.fg.orange, 3: Font.fg.lightred,
+                         4: Font.fg.red}
                 min_sick = min(regions.values())
                 sick_step = (max(regions.values()) + 1 - min_sick) / 5
 
                 min_rdsick = min(rd_sick.values())
                 rdsick_step = (max(rd_sick.values()) + 1 - min_rdsick) / 5
 
-                text += '   Рівні небезпеки: %s\n' % ' '.join(colour.set(zones[i], str(i)) for i in range(5))
+                text += '   Рівні небезпеки: %s\n' % ' '.join(Font.set(zones[i], str(i)) for i in range(5))
                 text += ' +{:-<76}+\n'.format('')
 
                 for region, sick in regions.items():
-                    # depending of the value, region will have its colour
+                    # depending of the value, region will have its Font
                     clr = zones[(rd_sick[region] - min_rdsick) // rdsick_step]
-                    ysick = colour.set(clr, '%+d' % rd_sick[region])
+                    ysick = Font.set(clr, '%+d' % rd_sick[region])
 
                     clr = zones[(sick - min_sick) // sick_step]
-                    region = colour.set(clr, region) + ' '
+                    region = Font.set(clr, region) + ' '
                     text += '   {:.<68} {:<6} | {:<5}\n'.format(region, sick, ysick)
 
             else:
@@ -1337,7 +1375,7 @@ class iCovid (iCovidBase):
             data_reg_tmpl = '"{}", "{}", "{}", "{}", "{}"'
 
             today_data = self.db.get({'date': today, 'country': country})
-            yestd_data = self.db.get({'date': yestd, 'country': country})
+            yestd_data = self.db.get({'date': yestd, 'country': country}, today_data)
 
             for region in today_data['Regions']:
                 sick = today_data['Regions'].get(region, 0)
@@ -1345,7 +1383,7 @@ class iCovid (iCovidBase):
                 data_regs.append([region, sick, d_sick])
                 #data_regs.append(data_reg_tmpl.format(region, sick, d_sick))
 
-            # 5 zones coloured by unique colour
+            # 5 zones Fonted by unique Font
             danger_color = "dtrr_danger{}"
             min_sick = min([it[1] for it in data_regs])
             sick_step = (max([it[1] for it in data_regs]) + 1 - min_sick) / 5
@@ -1354,7 +1392,7 @@ class iCovid (iCovidBase):
             dsick_step = (max([it[2] for it in data_regs]) + 1 - min_dsick) / 5
 
             for reg in data_regs:
-                # depending of the value, region will have its colour
+                # depending of the value, region will have its Font
                 sick = danger_color.format(int((reg[1] - min_sick) // sick_step))
                 reg.append(sick)
                 delta_sick = danger_color.format(int((reg[2] - min_dsick) // dsick_step))
@@ -1381,7 +1419,7 @@ class iCovid (iCovidBase):
             '            </div>\n'
         region_tmpl = '{}<path title="{}" tested="{}" sick="{}" d_sick="{}" recovered="{}" dead="{}" style="fill: rgb({}, {}, {});{}" class="land enabled" onclick="copy_info()" d="{}"/>\n'
         path_style_tmpl = ' stroke:#000000; stroke-width:{}; stroke-linecap:butt; stroke-linejoin:round; stroke-opacity:1;'
-        vii_tmpl = '<span class="vi_info" onclick="notify(\'{}\', 15000);">☣️</span>'
+        vii_tmpl = '<span class="vi_info" onclick="notify(\'{}\', 15000);">{}</span>'
 
         # create htmlWorker object
         html = htmlWorker('./report/report.html', './report/index.html')
@@ -1404,10 +1442,10 @@ class iCovid (iCovidBase):
 
         # get data for current date
         today_data = self.db.get({'date': curr_date})
-        yestd_data = self.db.get({'date': yest_date})
+        yestd_data = self.db.get({'date': yest_date}, today_data)
 
         # stage 1 - date of latest data update
-        updated = self.translate('eng', 'ukr', curr_date)
+        updated = self.translate('eng', 'ukr', datetime.now().strftime("%H:%M від %d %b %Y"))
 
         # configure default information
         default = today_data.get('Україна')
@@ -1465,8 +1503,8 @@ class iCovid (iCovidBase):
                 dead = '—'
 
                 # calculate color
-                aux_colour = int(255 - ((0 if sick == '—' else sick) / color_step))
-                rgb = (255, aux_colour, aux_colour)
+                aux_Font = int(255 - ((0 if sick == '—' else sick) / color_step))
+                rgb = (255, aux_Font, aux_Font)
 
                 _regions += region_tmpl.format(tab * 7, region, test, sick, d_sick,
                                                recv, dead, *rgb, path_style, path)
@@ -1475,7 +1513,7 @@ class iCovid (iCovidBase):
             _regions = _regions.rstrip()
 
             # prepare very important information (vii)
-            vii = vii_tmpl.format(data['vii']) if data.get('vii') else ''
+            vii = vii_tmpl.format(*data['vii']) if data.get('vii') else ''
 
             # form data per country
             regions += country_tmpl.format(data['Code'], checked,
@@ -1491,8 +1529,16 @@ class iCovid (iCovidBase):
         # prepare product version
         version = '{} [{}]'.format(__version__, self.translate('eng', 'ukr', __release__))
 
+        # prepare snowflakes set
+        snow = ''
+        snowflakes_kinds = ['❅', '❆', '❄']
+        snowflake_tmpl = '{}<div class="snowflake">{}</div>'
+
+        snowflakes_num = 20
+        snow = '\n'.join([snowflake_tmpl.format(tab * 3, random.choice(snowflakes_kinds)) for i in range(snowflakes_num)])
+
         # prepare data for rendering
-        render_cfg = {'updated': updated, 'regions': regions, 'total': total, 'version': version}
+        render_cfg = {'updated': updated, 'regions': regions, 'total': total, 'version': version, 'snow': snow}
 
         # render and save
         html.render(render_cfg)
@@ -1507,8 +1553,8 @@ class iCovid (iCovidBase):
             username = input(' [запит даних] > ім\'я користувача: ')
             password = getpass(' [запит даних] > пароль %s: ' % username)
         except KeyboardInterrupt:
-            self.logger.print('', end='\n')
-            self.logger.debug('Дані користувача не надано')
+            logger.print('', end='\n')
+            logger.debug('Дані користувача не надано')
             return (None, None)
 
         return (username, password)
@@ -1523,31 +1569,62 @@ class iCovid (iCovidBase):
             self.ftp.storbinary('STOR %s' % ftp_path(srcfile), f, 1024)
         duration = time.time() - start
 
-        self.logger.debug('Файл "%s" вивантажено [%fс]' % (srcfile, duration))
+        logger.debug('Файл "%s" вивантажено [%fс]' % (srcfile, duration))
+
+    def smtp_send(self, emails):
+        ''' Function sends emails using Google Mail Server '''
+        # run web files upload
+        logger.normal('Надсилання електронного листа ..')
+
+        # check if user entered SMTP credentials earlier
+        if not (self._smtp['email'] and self._smtp['password']):
+            # ask user to enter credentials for SMTP server
+            self._smtp['email'], self._smtp['password'] = self._login()
+            if not (self._smtp['email'] and self._smtp['password']):
+                logger.warning('Дані для входу в обліковий запис на надані')
+                return
+        else:
+            logger.normal('Автоматичне використання попередньої пошти та паролю')
+
+        # Create secure connection with server and send emails
+        start = time.time()
+        ctx = ssl.create_default_context()
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ctx) as server:
+            server.login(self._smtp['email'], self._smtp['password'])
+
+            for email in emails:
+                server.sendmail(self._smtp['email'], email.get_to(), email.get_message())
+
+        duration = time.time() - start
+        logger.success('Надіслано {} лист(ів) [{:.3f} c]'.format(len(emails), duration))
 
     def webpage_update(self, server):
         ''' Update web-page files through FTP server '''
         # generate HTML report
-        self.logger.normal('Генерування веб-сторінки ..')
+        logger.normal('Генерування веб-сторінки ..')
         self._html_report()
-        self.logger.success('Веб-сторінку згенеровано')
+        logger.success('Веб-сторінку згенеровано')
 
         # run web files upload
-        self.logger.normal('Оновлення веб-сторінки розпочато ..')
+        logger.normal('Оновлення веб-сторінки ..')
 
-        # get user data
-        uname, upass = self._login()
-        if not (uname and upass):
-            self.logger.warning('Оновлення веб-сторінки скасовано')
-            return
+        # check if user entered login and password earlier
+        if not (self._ftp['login'] and self._ftp['password']):
+            # there is no all information, so request a new one from the user
+            self._ftp['login'], self._ftp['password'] = self._login()
+            if not (self._ftp['login'] and self._ftp['password']):
+                logger.warning('Оновлення веб-сторінки скасовано')
+                return
+        else:
+            logger.normal('Автоматичне використання попередніх логіну та паролю')
 
         # setup FTP connection
         start = time.time()
         try:
             self.ftp.connect(server, 21)
-            self.ftp.login(uname, upass)
+            self.ftp.login(self._ftp['login'], self._ftp['password'])
         except Exception as e:
-            self.logger.error('Не вдається приєднатись до FTP-сервера')
+            logger.error('Не вдається приєднатись до FTP-сервера')
             return
 
         # configure copy destination
@@ -1574,15 +1651,60 @@ class iCovid (iCovidBase):
                      './report/flags/flag_rom.jpg']
 
         duration = time.time() - start
-        self.logger.debug('Приєднано до FTP-сервера [%fс]' % duration)
+        logger.normal('Приєднано до FTP-сервера [%fс]' % duration)
 
         # copy files
+        logger.normal('Починаємо надсилання файлів ...', end='\r')
         start = time.time()
-        for wfile in web_files:
+        for i, wfile in enumerate(web_files, 1):
             self._ftp_upload(wfile)
+            logger.normal('Наділано на сервер {} з {} файлів ...'.format(i, len(web_files)), end='\r' if wfile != web_files[-1] else '\n')
         duration = time.time() - start
 
-        self.logger.success('Веб-сторінку "%s" оновлено [%fс]' % (server, duration))
+        logger.success('Веб-сторінку "%s" оновлено [%fс]' % (server, duration))
+
+    def prepare_error_report(self):
+        """ Funciton prepare HTML report regarsing update errors """
+        def screen_content(text):
+            """ Function replace special HTML symbols by altirnatives """
+            spec_symbols = {'<': '(', '>': ')'}
+            for ss, alt in spec_symbols.items():
+                text = text.replace(ss, alt)
+
+            return text
+
+        if not self.upd_errors:
+            # no errors happened
+            return
+
+        error_tmpl = """<p><strong>Помилка</strong><br/>{}<br/><br/><strong>Деталі</strong><br/><code>{}</code></p>"""
+
+        html_tmpl = """<html><body style="white-space: pre-line">
+            <div><img alt="⚠️" src=""> Під час автоматичного оновлення даних виникла неочікувана помилка.</div>
+            <table style="border-collapse: collapse; width: 800px;" border="1">
+                <tbody>
+                    <tr>
+                        <td style="width: 200px; text-align: center; padding: 5px;">Час</td>
+                        <td style="width: 600px; text-align: center; padding: 5px;">Помилка</td>
+                    </tr>
+                    <tr>
+                        <td style="width: 200px; text-align: center; vertical-align: text-top; padding: 5px">{}</td>
+                        <td style="width: 600px; text-align: justify; padding: 5px">{}</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div><img alt="📍" src=""> Мережева сторінка - <a href="http://covidinfo.zzz.com.ua/" target="_blank" rel="noopener">covidinfo.zzz.com.ua</a>.</div>
+            <div>З повагою,<br/>Команда "Вирій" <img alt="🔥" src=""></div>
+            </body>
+            </html>"""
+
+        errors = '<hr>'.join([error_tmpl.format(screen_content(error[0]), screen_content(error[1])) for error in self.upd_errors])
+
+        return html_tmpl.format(self.translate('eng', 'ukr', '{:%d-%b-%Y %H:%M:%S}'.format(datetime.now())), errors)
+
+    def add_error(self, error, details):
+        """ Function add some user errors to the errors list """
+        self.upd_errors.append([error, details])
 
 
 def help():
@@ -1624,6 +1746,7 @@ def help():
 def main():
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument('-w', '--web_update',  action='store_true')
+    parser.add_argument('-s', '--server', action='store_true')
     parser.add_argument('-d', '--debug', action='store_true')
     parser.add_argument('-h', '--help', action='store_true')
 
@@ -1637,12 +1760,51 @@ def main():
         help()
 
     else:
-        covid = iCovid(debug=args.debug)
-        covid.update()
-        print(covid)
+        logger.set_lvl(LogLevel.DEBUG if args.debug else LogLevel.NORMAL)
+        logger.userless_mode(args.server)
 
-        if args.web_update:
-            covid.webpage_update('covidinfo.zzz.com.ua')
+        # initialize iCovid object
+        covid = iCovid(args.server)
+
+        while True:
+            try:
+                # update database and print it to the CLI
+                covid.update()
+                print(covid)
+
+                if args.web_update:
+                    # run webpage update
+                    covid.webpage_update('covidinfo.zzz.com.ua')
+
+                logger.success('Дані оновлено')
+
+            except Exception as e:
+                # oops... something unexpectedly failed
+                error_msg = 'При оновленні даних веб-сторінки щось пішло не так'
+                logger.error(error_msg)
+
+                tb_error = traceback.format_exc().split('\n')
+                tb_error = tb_error[-1:] + tb_error[:-1]
+                covid.add_error(error_msg, '\n'.join(tb_error))
+
+            # prepare email if there are any errors
+            content = covid.prepare_error_report()
+
+            if content:
+                # send an email
+                email = Email('sviytiv@gmail.com', '⛔️ Звіт про помилки оновлення даних', content)
+                covid.smtp_send([email])
+                logger.normal('Звіт про помилки надіслано')
+
+            if not args.server:
+                # exit if user not enabled server mode
+                break
+
+            else:
+                # print delay till next request
+                logger.normal('Наступний запит буде о {:%H:%M:%S}'.format(datetime.now() + timedelta(hours=1)))
+                # sleep an hour before the next request
+                time.sleep(3600)
 
 
 if __name__ == '__main__':

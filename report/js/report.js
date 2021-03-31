@@ -111,10 +111,10 @@ $(document).on('mousemove', function(e){
 
 $('#footer_content').hover(
     function() {
-        $(this).text("🔥 мий руки. поважай оточення. носи маску 😷");
+        $(this).text("🎄 Вітаємо з Новим Роком 2021 ☃️");
     },
     function() {
-        $(this).text("🤨 каже вже є вакцина? короні байдуже! 👑");
+        $(this).text("Компанія \"Вирій\" ❄️ 2021");
 });
 
 /* Country changed
